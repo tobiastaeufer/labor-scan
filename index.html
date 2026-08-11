@@ -421,6 +421,16 @@ function buildLocations(inventory){
   out.sort((a,b)=> a.path.localeCompare(b.path,"en"));
   return out;
 }
+function parseCarbonRange(path){
+  const m = /C(\d+)\s*[-–—]\s*C?(\d+)/i.exec(path);
+  if(!m) return null;
+  const a = parseInt(m[1],10), b = parseInt(m[2],10);
+  return { min: Math.min(a,b), max: Math.max(a,b) };
+}
+function locationForCarbonCount(n){
+  if(n==null || !isFinite(n)) return null;
+  return S.locs.find(l => l.carbonRange && n >= l.carbonRange.min && n <= l.carbonRange.max) || null;
+}
 function fillLocSelects(){
   ["locSel","cloc"].forEach(id=>{
     const sel=$(id); const keep=sel.value;
@@ -443,6 +453,7 @@ async function connect(){
     const d = await api("/general/getdetails", {});
     S.user = d.user; S.inv = d.inventory;
     S.locs = buildLocations(d.inventory);
+    S.locs.forEach(l => { l.carbonRange = parseCarbonRange(l.path); });
     S.units = d.inventory.units || [];
     S.supps = d.inventory.suppliers || [];
 
@@ -662,6 +673,29 @@ async function prefillFromExisting(sid){
   }catch(e){ note.textContent=""; }
 }
 
+async function suggestLocationByFormula(h){
+  if($("cloc").value) return;
+  if(!h.cas || h.cas === "N/A") return;
+  try{
+    const res = await fetch("https://pubchem.ncbi.gov/rest/pug/compound/xref/RN/"+encodeURIComponent(h.cas)+"/property/MolecularFormula/JSON");
+    if(!res.ok) return;
+    const data = await res.json();
+    const props = data && data.PropertyTable && data.PropertyTable.Properties;
+    const formula = props && props[0] && props[0].MolecularFormula;
+    if(!formula) return;
+    const m = /^C(?![a-z])(\d*)/.exec(formula);
+    if(!m) return;
+    const carbons = parseInt(m[1] || "1", 10);
+    const loc = locationForCarbonCount(carbons);
+    if(loc && !$("cloc").value){
+      $("cloc").value = loc.id;
+      const note = $("prefillNote");
+      const extra = "Suggested by carbon count (C"+carbons+", "+formula+") — please double-check.";
+      note.textContent = note.textContent ? note.textContent + " " + extra : extra;
+    }
+  }catch(e){ /* PubChem unreachable or blocked — leave location for manual selection */ }
+}
+
 function logAdd(listId, ok, title, sub){
   const ul = $(listId);
   const es = ul.querySelector(".empty-state"); if(es) es.remove();
@@ -837,9 +871,10 @@ function pickSubstance(h){
   $("cname").value = h.name || "";
   $("newForm").style.display="block";
   $("bcHint").textContent = "— scanning fills this field";
-  if(!$("cloc").value && S.recent.loc) $("cloc").value = S.recent.loc;
   renderQuick();
-  prefillFromExisting(h.id);
+  prefillFromExisting(h.id).then(()=> suggestLocationByFormula(h)).then(()=>{
+    if(!$("cloc").value && S.recent.loc) $("cloc").value = S.recent.loc;
+  });
   if(h.needsretrieval===1 && h.cas && h.cas!=="N/A"){
     api("/general/retrievesubstanceinfo", {substance:h.id}).catch(()=>{});
   }
