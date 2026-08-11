@@ -445,6 +445,8 @@ async function connect(){
 
     fillLocSelects();
     detectFields();
+    const box = S.locs.find(l => /borrowbox/i.test(l.path));
+    if(box) setTarget(box.id);
     const us=$("cunit"); us.innerHTML="";
     S.units.forEach(u=>{ const o=document.createElement("option"); o.value=u.id; o.textContent=u.unit; us.appendChild(o); });
     const dl=$("suppList"); dl.innerHTML="";
@@ -469,8 +471,7 @@ scanner.innerHTML =
   '<div class="viewport" id="vp"><video id="vid" playsinline muted></video><div class="reticle"></div></div>'+
   '<div class="scanbar"><span class="lbl" id="scanLbl">Camera off</span>'+
   '<button id="btnCam">Start camera</button></div>'+
-  '<div class="manual"><input id="man" class="code" placeholder="Type or scan a barcode" autocomplete="off" autocapitalize="characters">'+
-  '<button class="ghost" id="btnMan" style="flex:none">OK</button></div>';
+  '<div class="manual"><input id="man" class="code" placeholder="Type or scan a barcode, then press enter" autocomplete="off" autocapitalize="characters"></div>';
 
 function mountScanner(slotId){
   const slot = $(slotId);
@@ -902,8 +903,13 @@ $("btnCancelPending").onclick = cancelPending;
 setMode("out");
 $("btnAdd").onclick = addContainer;
 scanner.querySelector("#btnCam").onclick = camStart;
-scanner.querySelector("#btnMan").onclick = ()=>{ const i=$("man"); if(i.value.trim()){ handleCode(i.value.trim()); i.value=""; } };
-scanner.querySelector("#man").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); scanner.querySelector("#btnMan").click(); }});
+scanner.querySelector("#man").addEventListener("keydown", e=>{
+  if(e.key==="Enter"){
+    e.preventDefault();
+    const i = scanner.querySelector("#man");
+    if(i.value.trim()){ handleCode(i.value.trim()); i.value=""; }
+  }
+});
 
 if(S.token) connect().then(()=> show("lend")).catch(()=>{});
 </script>
