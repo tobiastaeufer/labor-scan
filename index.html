@@ -449,6 +449,10 @@ function parseCarbonRange(path){
     const a = parseInt(range[1],10), b = parseInt(range[2],10);
     return { min: Math.min(a,b), max: Math.max(a,b) };
   }
+  const plus = /C(\d+)\s*\+/i.exec(path);
+  if(plus){
+    return { min: parseInt(plus[1],10), max: Infinity };
+  }
   const single = /C(\d+)\b/i.exec(path);
   if(single){
     const n = parseInt(single[1],10);
@@ -723,6 +727,27 @@ function appendNote(text){
   note.textContent = note.textContent ? note.textContent + " " + text : text;
 }
 
+async function fetchPubchemFormula(cas){
+  const target = "https://pubchem.ncbi.gov/rest/pug/compound/xref/RN/"+encodeURIComponent(cas)+"/property/MolecularFormula/JSON";
+  // Direct PubChem access fails with a CORS error from the browser, so this
+  // routes through a public CORS proxy as a best-effort fallback. If that
+  // proxy ever goes away, swap the URL below for another one.
+  const attempts = [ target, "https://corsproxy.io/?url="+encodeURIComponent(target) ];
+  let lastErr = new Error("no formula found");
+  for(const url of attempts){
+    try{
+      const res = await fetch(url);
+      if(!res.ok){ lastErr = new Error("HTTP "+res.status); continue; }
+      const data = await res.json();
+      const props = data && data.PropertyTable && data.PropertyTable.Properties;
+      const formula = props && props[0] && props[0].MolecularFormula;
+      if(formula) return formula;
+      lastErr = new Error("no formula in response");
+    }catch(e){ lastErr = e; }
+  }
+  throw lastErr;
+}
+
 async function suggestLocationByFormula(h, retrieved){
   if($("cloc").value) return;
   let formula = extractFormulaFromSubstance(h) || extractFormulaFromSubstance(retrieved);
@@ -731,14 +756,9 @@ async function suggestLocationByFormula(h, retrieved){
     if(!h.cas || h.cas === "N/A") return;
     source = "PubChem";
     try{
-      const res = await fetch("https://pubchem.ncbi.gov/rest/pug/compound/xref/RN/"+encodeURIComponent(h.cas)+"/property/MolecularFormula/JSON");
-      if(!res.ok){ appendNote("Carbon-count lookup: substance not found in PubChem (HTTP "+res.status+")."); return; }
-      const data = await res.json();
-      const props = data && data.PropertyTable && data.PropertyTable.Properties;
-      formula = props && props[0] && props[0].MolecularFormula;
-      if(!formula){ appendNote("Carbon-count lookup: PubChem returned no formula."); return; }
+      formula = await fetchPubchemFormula(h.cas);
     }catch(e){
-      appendNote("Carbon-count lookup failed (network/CORS): "+(e.message||e)+".");
+      appendNote("Carbon-count lookup failed: "+(e.message||e)+".");
       return;
     }
   }
