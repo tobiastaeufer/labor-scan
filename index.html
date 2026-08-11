@@ -1075,6 +1075,8 @@ $("btnTest").onclick = connect;
 $("btnForget").onclick = ()=>{ store.del("ci.token"); S.token=""; $("tok").value=""; location.reload(); };
 $("locSel").onchange = e => setTarget(e.target.value);
 $("btnSub").onclick = findSubstance;
+$("cas").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); findSubstance(); }});
+$("sname").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); findSubstance(); }});
 $("modeOut").onclick = ()=> setMode("out");
 $("modeIn").onclick  = ()=> setMode("in");
 $("btnPerson").onclick = ()=>{
