@@ -250,6 +250,15 @@ video{width:100%;height:100%;object-fit:cover;display:block}
     </div>
   </div>
 
+  <div class="card" id="pendingCard" style="display:none">
+    <p class="eyebrow">Bereit zum Buchen</p>
+    <div id="pendingBody"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="ghost" id="btnCancelPending">Verwerfen</button>
+      <button class="act" id="btnConfirmPending" style="flex:2">Bestätigen</button>
+    </div>
+  </div>
+
   <div class="card">
     <p class="eyebrow">Protokoll</p>
     <ul class="log" id="lendLog"><li class="empty-state">Ziel setzen, dann Flaschen scannen.</li></ul>
@@ -344,7 +353,8 @@ const S = {
   person: store.get("ci.person",""),
   people: store.get("ci.people",[]),
   cfWho: null, cfWhen: null,
-  recent: store.get("ci.recent", {sizes:[], supps:[], loc:""})
+  recent: store.get("ci.recent", {sizes:[], supps:[], loc:""}),
+  pending: null
 };
 
 const $ = id => document.getElementById(id);
@@ -532,6 +542,7 @@ function setTarget(id){
   $("tgtName").textContent = l ? l.path : "noch nicht gesetzt";
   $("tgtName").classList.toggle("empty", !l);
   $("locSel").value = l ? l.id : "";
+  if(S.pending) renderPending();
 }
 function detectFields(){
   const cf = (S.inv && S.inv.customfields && S.inv.customfields.container) || [];
@@ -568,6 +579,7 @@ function renderPeople(){
   $("whoLine").textContent = S.mode==="in"
     ? "Rückgabe — Ausleihe wird geleert"
     : (S.person ? "an " + S.person + " · " + new Date().toLocaleDateString("de-DE") : "niemand gewählt");
+  if(S.pending) renderPending();
 }
 
 function setMode(m){
@@ -575,6 +587,7 @@ function setMode(m){
   $("modeOut").setAttribute("aria-pressed", String(m==="out"));
   $("modeIn").setAttribute("aria-pressed", String(m==="in"));
   $("whoCard").style.display = m==="in" ? "none" : "block";
+  cancelPending();
   renderPeople();
 }
 
@@ -647,39 +660,107 @@ function logAdd(listId, ok, title, sub){
 }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
-async function lendScan(code){
-  if(!S.token){ logAdd("lendLog", false, "Nicht verbunden", "Erst unter Zugang anmelden"); beep(false); return; }
-  const loc = S.locs.find(l=> l.barcode && l.barcode.toLowerCase()===code.toLowerCase());
-  if(loc){ setTarget(loc.id); beep(true); logAdd("lendLog", true, "Ziel gesetzt", loc.path); return; }
-  if(!S.target){ logAdd("lendLog", false, "Kein Ziel gesetzt", code); beep(false); return; }
-  try{
-    const d = await api("/search/execute", {inventory:S.user.inventory, type:"barcode", contents:code});
-    const c = (d.containers||[])[0];
-    if(!c){ logAdd("lendLog", false, "Kein Container zu diesem Code", code); beep(false); return; }
-    await api("/container/move", {containerid:[c.id], destinationid:S.target.id});
+function buildLendNote(person, prevPath){
+  return "[Ausleihe] " + person + " · " + new Date().toISOString().slice(0,10) + " · vorher: " + prevPath;
+}
+function parseLendNote(text){
+  const lines = String(text||"").split("\n");
+  const m = /^\[Ausleihe\]\s*(.*?)\s*·\s*([\d-]+)\s*·\s*vorher:\s*(.+)$/.exec(lines[0]||"");
+  if(!m) return null;
+  return { person:m[1], date:m[2], locPath:m[3], rest: lines.slice(1).join("\n") };
+}
 
-    let note = code + " → " + S.target.path;
-    if(S.mode === "out"){
+function renderPending(){
+  const card = $("pendingCard"), body = $("pendingBody");
+  if(!S.pending){ card.style.display="none"; return; }
+  const p = S.pending, c = p.container;
+  card.style.display="block";
+  let html = '<div style="font-size:15px;font-weight:600;margin-bottom:4px">'+esc(c.name)+'</div>'+
+             '<div class="bc" style="margin-bottom:8px">'+esc(p.code)+'</div>';
+  if(p.mode === "out"){
+    html += '<div style="font-size:14px">Ziel: '+(S.target?esc(S.target.path):'<span style="color:var(--bad)">keins gewählt</span>')+'</div>'+
+            '<div style="font-size:14px;margin-top:3px">An: '+(S.person?esc(S.person):'<span style="color:var(--bad)">niemand gewählt</span>')+'</div>';
+  } else {
+    html += '<div style="font-size:14px">Zurück nach: '+(S.target?esc(S.target.path):'<span style="color:var(--bad)">bitte wählen</span>')+'</div>'+
+      (p.parsed
+        ? '<p class="hint" style="margin:6px 0 0">Vorheriger Ort aus dem Kommentar übernommen — bei Bedarf oben im Dropdown ändern.</p>'
+        : '<p class="hint" style="margin:6px 0 0">Kein vorheriger Ort im Kommentar gefunden — bitte Standort wählen.</p>');
+  }
+  body.innerHTML = html;
+}
+
+function cancelPending(){ S.pending = null; renderPending(); }
+
+async function confirmPending(){
+  if(!S.pending) return;
+  const p = S.pending, c = p.container;
+  if(!S.target){ logAdd("lendLog", false, "Kein Ziel gewählt", p.code); beep(false); return; }
+  const btn = $("btnConfirmPending"); btn.disabled = true;
+  try{
+    const prevLoc = S.locs.find(l=> String(l.id)===String(c.location));
+    const prevPath = prevLoc ? prevLoc.path : "unbekannt";
+
+    await api("/container/move", {containerid:[c.id], destinationid:S.target.id});
+    let note = p.code + " → " + S.target.path;
+
+    if(p.mode === "out"){
       if(!S.person && (S.cfWho || S.people.length)){
-        logAdd("lendLog", false, "Keine Person gewählt — nur verschoben", note); beep(false);
-        S.count++; $("tgtCount").textContent = S.count; return;
+        logAdd("lendLog", false, "Keine Person gewählt — nur verschoben", note);
+      } else {
+        const heute = new Date().toISOString().slice(0,10);
+        try{
+          await writeField(c.id, S.cfWho, S.person);
+          await writeField(c.id, S.cfWhen, heute);
+        }catch(e){ note += " · Feld nicht geschrieben: " + (e.message||e); }
+        try{
+          const newComments = buildLendNote(S.person || "unbekannt", prevPath) + (c.comments ? "\n"+c.comments : "");
+          await api("/container/information/save", {containerid:c.id, field:"comments", newvalue:newComments});
+        }catch(e){ note += " · Kommentar nicht geschrieben: " + (e.message||e); }
+        if(S.person) note = p.code + " → " + S.person + " · " + S.target.path;
+        logAdd("lendLog", true, c.name, note);
       }
-      const heute = new Date().toISOString().slice(0,10);
-      try{
-        await writeField(c.id, S.cfWho, S.person);
-        await writeField(c.id, S.cfWhen, heute);
-      }catch(e){ note += " · Feld nicht geschrieben: " + (e.message||e); }
-      if(S.person) note = code + " → " + S.person + " · " + S.target.path;
     } else {
       try{
         await writeField(c.id, S.cfWho, "");
         await writeField(c.id, S.cfWhen, "");
       }catch(e){ note += " · Feld nicht geleert: " + (e.message||e); }
-      note = code + " → zurück nach " + S.target.path;
+      try{
+        const restored = p.parsed ? p.parsed.rest : (c.comments||"");
+        await api("/container/information/save", {containerid:c.id, field:"comments", newvalue:restored});
+      }catch(e){ note += " · Kommentar nicht geleert: " + (e.message||e); }
+      note = p.code + " → zurück nach " + S.target.path;
+      logAdd("lendLog", true, c.name, note);
     }
 
     S.count++; $("tgtCount").textContent = S.count;
-    logAdd("lendLog", true, c.name, note);
+    beep(true);
+    S.pending = null; renderPending();
+  }catch(err){
+    logAdd("lendLog", false, String(err.message||err), p.code); beep(false);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function stageLendCode(code){
+  if(!S.token){ logAdd("lendLog", false, "Nicht verbunden", "Erst unter Zugang anmelden"); beep(false); return; }
+  const loc = S.locs.find(l=> l.barcode && l.barcode.toLowerCase()===code.toLowerCase());
+  if(loc){ setTarget(loc.id); beep(true); logAdd("lendLog", true, "Ziel gesetzt", loc.path); return; }
+  if(S.mode === "out" && !S.target){ logAdd("lendLog", false, "Kein Ziel gesetzt", code); beep(false); return; }
+  try{
+    const d = await api("/search/execute", {inventory:S.user.inventory, type:"barcode", contents:code});
+    const c = (d.containers||[])[0];
+    if(!c){ logAdd("lendLog", false, "Kein Container zu diesem Code", code); beep(false); return; }
+
+    let parsed = null;
+    if(S.mode === "in"){
+      parsed = parseLendNote(c.comments||"");
+      const prevLoc = parsed ? S.locs.find(l=> l.path === parsed.locPath) : null;
+      setTarget(prevLoc ? prevLoc.id : (S.target ? S.target.id : ""));
+    }
+
+    S.pending = {code, container:c, mode:S.mode, parsed};
+    renderPending();
     beep(true);
   }catch(err){
     logAdd("lendLog", false, String(err.message||err), code); beep(false);
@@ -752,7 +833,8 @@ function show(p){
     $("p-"+k).classList.toggle("on", k===p);
     $("tab-"+k).setAttribute("aria-selected", String(k===p));
   });
-  if(p==="lend"){ mountScanner("lendSlot"); sink = lendScan; $("scanLbl").textContent = running?"Code ins Rechteck halten":"Kamera aus"; }
+  if(p!=="lend") cancelPending();
+  if(p==="lend"){ mountScanner("lendSlot"); sink = stageLendCode; $("scanLbl").textContent = running?"Code ins Rechteck halten":"Kamera aus"; }
   else if(p==="new"){ mountScanner("newSlot"); sink = code => {
       const isCas = /^\d{2,7}-\d{2}-\d$/.test(code.trim());
       if(isCas){ $("cas").value = code; beep(true); }
@@ -783,6 +865,8 @@ $("btnPerson").onclick = ()=>{
   i.value=""; renderPeople();
 };
 $("newPerson").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); $("btnPerson").click(); }});
+$("btnConfirmPending").onclick = confirmPending;
+$("btnCancelPending").onclick = cancelPending;
 setMode("out");
 $("btnAdd").onclick = addContainer;
 scanner.querySelector("#btnCam").onclick = camStart;
