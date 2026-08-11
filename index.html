@@ -444,10 +444,17 @@ function buildLocations(inventory){
   return out;
 }
 function parseCarbonRange(path){
-  const m = /C(\d+)\s*[-–—]\s*C?(\d+)/i.exec(path);
-  if(!m) return null;
-  const a = parseInt(m[1],10), b = parseInt(m[2],10);
-  return { min: Math.min(a,b), max: Math.max(a,b) };
+  const range = /C(\d+)\s*[-–—]\s*C?(\d+)/i.exec(path);
+  if(range){
+    const a = parseInt(range[1],10), b = parseInt(range[2],10);
+    return { min: Math.min(a,b), max: Math.max(a,b) };
+  }
+  const single = /C(\d+)\b/i.exec(path);
+  if(single){
+    const n = parseInt(single[1],10);
+    return { min: n, max: n };
+  }
+  return null;
 }
 function locationForCarbonCount(n){
   if(n==null || !isFinite(n)) return null;
@@ -696,10 +703,16 @@ async function prefillFromExisting(sid){
 }
 
 function extractFormulaFromSubstance(h){
-  for(const k of Object.keys(h||{})){
-    if(/formula/i.test(k)){
-      const v = h[k];
-      if(typeof v === "string" && v.trim() && v.trim().length < 40) return v.trim();
+  if(!h || typeof h !== "object") return null;
+  for(const k of Object.keys(h)){
+    const v = h[k];
+    if(/formula/i.test(k) && typeof v === "string" && v.trim() && v.trim().length < 40) return v.trim();
+  }
+  for(const k of Object.keys(h)){
+    const v = h[k];
+    if(v && typeof v === "object" && !Array.isArray(v)){
+      const nested = extractFormulaFromSubstance(v);
+      if(nested) return nested;
     }
   }
   return null;
@@ -710,9 +723,9 @@ function appendNote(text){
   note.textContent = note.textContent ? note.textContent + " " + text : text;
 }
 
-async function suggestLocationByFormula(h){
+async function suggestLocationByFormula(h, retrieved){
   if($("cloc").value) return;
-  let formula = extractFormulaFromSubstance(h);
+  let formula = extractFormulaFromSubstance(h) || extractFormulaFromSubstance(retrieved);
   let source = "ChemInventory";
   if(!formula){
     if(!h.cas || h.cas === "N/A") return;
@@ -918,12 +931,15 @@ function pickSubstance(h){
   $("newForm").style.display="block";
   $("bcHint").textContent = "— scanning fills this field";
   renderQuick();
-  prefillFromExisting(h.id).then(()=> suggestLocationByFormula(h)).then(()=>{
+
+  const retrieval = (h.needsretrieval===1 && h.cas && h.cas!=="N/A")
+    ? api("/general/retrievesubstanceinfo", {substance:h.id}).catch(()=>null)
+    : Promise.resolve(null);
+
+  Promise.all([prefillFromExisting(h.id), retrieval]).then(([,retrieved])=> suggestLocationByFormula(h, retrieved)).then(()=>{
     if(!$("cloc").value && S.recent.loc) $("cloc").value = S.recent.loc;
   });
-  if(h.needsretrieval===1 && h.cas && h.cas!=="N/A"){
-    api("/general/retrievesubstanceinfo", {substance:h.id}).catch(()=>{});
-  }
+
   $("cbc").scrollIntoView({behavior:"smooth", block:"center"});
 }
 async function addContainer(){
