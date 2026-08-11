@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0E1114">
-<title>Laborbuchung</title>
+<title>Lab Booking</title>
 <style>
 :root{
   --bg:#0E1114;
@@ -13,7 +13,7 @@
   --line:#2A3238;
   --ink:#E8EDF1;
   --muted:#8A97A3;
-  --amber:#E8B23A;      /* Braunglas */
+  --amber:#E8B23A;      /* amber glass */
   --ok:#5FD68A;
   --bad:#F2695C;
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
@@ -29,7 +29,7 @@ body{
 }
 .wrap{max-width:560px;margin:0 auto;padding:0 14px 40px}
 
-/* ---- Kopf ---- */
+/* ---- Header ---- */
 header{
   position:sticky;top:0;z-index:20;background:var(--bg);
   padding:12px 0 8px;border-bottom:1px solid var(--line);
@@ -55,7 +55,7 @@ nav button{
 nav button[aria-selected="true"]{background:var(--surface-2);color:var(--ink);border-color:#3A454D}
 nav button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
 
-/* ---- Bausteine ---- */
+/* ---- Building blocks ---- */
 .panel{display:none;padding-top:14px}
 .panel.on{display:block}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
@@ -110,7 +110,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 .manual{display:flex;gap:8px;padding:0 12px 12px;background:var(--surface)}
 .manual input{flex:1}
 
-/* ---- Zielleiste: das Signaturelement ---- */
+/* ---- Target bar: the signature element ---- */
 .target{
   display:flex;align-items:center;gap:12px;
   background:linear-gradient(90deg,rgba(232,178,58,.16),rgba(232,178,58,.04));
@@ -126,7 +126,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 }
 .target .count small{display:block;font-size:9px;letter-spacing:.1em;color:var(--muted);font-weight:400;margin-top:3px}
 
-/* ---- Protokoll ---- */
+/* ---- Log ---- */
 .log{list-style:none;margin:0;padding:0}
 .log li{
   display:flex;gap:10px;align-items:flex-start;
@@ -140,7 +140,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 .log .t{font-family:var(--mono);font-size:11px;color:var(--muted);flex:none}
 .empty-state{color:var(--muted);font-size:13.5px;padding:6px 0}
 
-/* ---- Meldungen ---- */
+/* ---- Messages ---- */
 .msg{border-radius:9px;padding:11px 12px;font-size:13.5px;margin-bottom:11px;display:none}
 .msg.on{display:block}
 .msg.good{background:rgba(95,214,138,.12);border:1px solid rgba(95,214,138,.4);color:#B6EFCC}
@@ -152,7 +152,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 .pick b{display:block;font-size:14.5px}
 .pick span{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
 
-/* ---- Personen & Modus ---- */
+/* ---- People & mode ---- */
 .seg{display:flex;gap:0;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-bottom:12px}
 .seg button{
   flex:1;appearance:none;border:none;background:transparent;color:var(--muted);
@@ -176,157 +176,157 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 
 <header>
   <div class="brand">
-    <h1>Laborbuchung</h1>
-    <div class="conn"><span class="dot" id="dot"></span><span id="connTxt">nicht verbunden</span></div>
+    <h1>Lab Booking</h1>
+    <div class="conn"><span class="dot" id="dot"></span><span id="connTxt">not connected</span></div>
   </div>
   <nav role="tablist">
-    <button role="tab" id="tab-lend" aria-selected="false" data-p="lend">Ausleihen</button>
-    <button role="tab" id="tab-new" aria-selected="false" data-p="new">Neu anlegen</button>
-    <button role="tab" id="tab-setup" aria-selected="true" data-p="setup">Zugang</button>
+    <button role="tab" id="tab-lend" aria-selected="false" data-p="lend">Check out</button>
+    <button role="tab" id="tab-new" aria-selected="false" data-p="new">New item</button>
+    <button role="tab" id="tab-setup" aria-selected="true" data-p="setup">Access</button>
   </nav>
 </header>
 
-<!-- ============ ZUGANG ============ -->
+<!-- ============ ACCESS ============ -->
 <section class="panel on" id="p-setup">
   <div class="card">
-    <p class="eyebrow">Schritt 1 — Verbindung prüfen</p>
+    <p class="eyebrow">Step 1 — Test connection</p>
     <div class="field">
-      <label for="url">Adresse deiner ChemInventory-Instanz</label>
+      <label for="url">Your ChemInventory instance URL</label>
       <input id="url" class="code" value="https://app.cheminventory.net" autocomplete="off" autocapitalize="off" spellcheck="false">
     </div>
     <div class="field">
-      <label for="tok">API-Token</label>
+      <label for="tok">API token</label>
       <input id="tok" class="code" type="password" placeholder="xxxxxxxx-xxxx-…" autocomplete="off" autocapitalize="off" spellcheck="false">
     </div>
-    <button class="act" id="btnTest">Verbindung testen</button>
+    <button class="act" id="btnTest">Test connection</button>
     <div class="msg" id="setupMsg"></div>
-    <p class="hint">Der Token bleibt im Speicher dieses Browsers und wird an niemanden außer deine ChemInventory-Instanz gesendet. Nimm einen Token auf ein Konto mit normalen Nutzerrechten.</p>
+    <p class="hint">The token stays in this browser's storage and is only ever sent to your ChemInventory instance. Use a token from an account with normal user permissions.</p>
   </div>
 
   <div class="card">
-    <p class="eyebrow">Wenn der Test fehlschlägt</p>
-    <p class="hint" style="margin-top:0">Ein Fehler wie <code>Failed to fetch</code> bedeutet fast immer, dass ChemInventory Anfragen direkt aus dem Browser blockt (CORS). Dann hilft nur ein kleiner Vermittler-Dienst auf einem Rechner im Institut — oder du bleibst beim Scan-to-Move-Tool auf der ChemInventory-Seite. Ein Fehler mit Text aus ChemInventory heißt dagegen: Verbindung steht, nur der Token stimmt nicht.</p>
+    <p class="eyebrow">If the test fails</p>
+    <p class="hint" style="margin-top:0">An error like <code>Failed to fetch</code> almost always means ChemInventory is blocking requests coming directly from the browser (CORS). The only fix then is a small relay service running on a machine at the institute — or sticking with the scan-to-move tool on the ChemInventory site itself. An error with text from ChemInventory, on the other hand, means the connection works and only the token is wrong.</p>
   </div>
 
   <div class="card" id="whoami" style="display:none">
-    <p class="eyebrow">Angemeldet</p>
+    <p class="eyebrow">Signed in</p>
     <div id="whoamiBody"></div>
-    <button class="ghost" id="btnForget" style="width:100%;margin-top:10px">Token von diesem Gerät löschen</button>
+    <button class="ghost" id="btnForget" style="width:100%;margin-top:10px">Remove token from this device</button>
   </div>
 </section>
 
-<!-- ============ AUSLEIHEN ============ -->
+<!-- ============ CHECK OUT ============ -->
 <section class="panel" id="p-lend">
   <div class="seg" role="group">
-    <button id="modeOut" aria-pressed="true">Ausleihen</button>
-    <button id="modeIn" aria-pressed="false">Zurückstellen</button>
+    <button id="modeOut" aria-pressed="true">Check out</button>
+    <button id="modeIn" aria-pressed="false">Return</button>
   </div>
 
   <div class="target">
     <div>
-      <div class="k">Ziel</div>
-      <div class="v empty" id="tgtName">noch nicht gesetzt</div>
-      <div class="k" id="whoLine" style="margin-top:6px;color:var(--muted)">niemand gewählt</div>
+      <div class="k">Target</div>
+      <div class="v empty" id="tgtName">not set yet</div>
+      <div class="k" id="whoLine" style="margin-top:6px;color:var(--muted)">no one selected</div>
     </div>
-    <div class="count"><span id="tgtCount">0</span><small>gebucht</small></div>
+    <div class="count"><span id="tgtCount">0</span><small>booked</small></div>
   </div>
 
   <div id="lendSlot"></div>
 
+  <div class="card" id="pendingCard" style="display:none">
+    <p class="eyebrow">Ready to confirm</p>
+    <div id="pendingBody"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="ghost" id="btnCancelPending">Discard</button>
+      <button class="act" id="btnConfirmPending" style="flex:2">Confirm</button>
+    </div>
+  </div>
+
   <div class="card" id="whoCard">
-    <p class="eyebrow">An wen</p>
+    <p class="eyebrow">People</p>
     <div class="chips" id="people"></div>
     <div class="row" style="margin-top:9px">
-      <input id="newPerson" placeholder="Name hinzufügen" autocomplete="off">
-      <button class="ghost" id="btnPerson" style="flex:none">Hinzufügen</button>
+      <input id="newPerson" placeholder="Add name" autocomplete="off">
+      <button class="ghost" id="btnPerson" style="flex:none">Add</button>
     </div>
     <p class="hint" id="cfHint"></p>
   </div>
 
   <div class="card">
     <div class="field" style="margin-bottom:0">
-      <label for="locSel">Ziel wählen — oder den Barcode eines Standorts scannen</label>
+      <label for="locSel">Choose a location — or scan a location barcode</label>
       <select id="locSel"><option value="">…</option></select>
     </div>
   </div>
 
-  <div class="card" id="pendingCard" style="display:none">
-    <p class="eyebrow">Bereit zum Buchen</p>
-    <div id="pendingBody"></div>
-    <div class="row" style="margin-top:10px">
-      <button class="ghost" id="btnCancelPending">Verwerfen</button>
-      <button class="act" id="btnConfirmPending" style="flex:2">Bestätigen</button>
-    </div>
-  </div>
-
   <div class="card">
-    <p class="eyebrow">Protokoll</p>
-    <ul class="log" id="lendLog"><li class="empty-state">Ziel setzen, dann Flaschen scannen.</li></ul>
+    <p class="eyebrow">Log</p>
+    <ul class="log" id="lendLog"><li class="empty-state">Set a target, then scan bottles.</li></ul>
   </div>
 </section>
 
-<!-- ============ NEU ANLEGEN ============ -->
+<!-- ============ NEW ITEM ============ -->
 <section class="panel" id="p-new">
   <div id="newSlot"></div>
 
   <div class="card">
-    <p class="eyebrow">Schritt 1 — Substanz</p>
+    <p class="eyebrow">Step 1 — Substance</p>
     <div class="field">
-      <label for="cas">CAS-Nummer</label>
+      <label for="cas">CAS number</label>
       <input id="cas" class="code" placeholder="7087-68-5" inputmode="text" pattern="[0-9\-]*" autocomplete="off">
     </div>
     <div class="field">
-      <label for="sname">oder Name</label>
-      <input id="sname" placeholder="N,N-Diisopropylethylamin" autocomplete="off">
+      <label for="sname">or name</label>
+      <input id="sname" placeholder="N,N-Diisopropylethylamine" autocomplete="off">
     </div>
-    <button class="ghost" id="btnSub" style="width:100%">Substanz suchen</button>
+    <button class="ghost" id="btnSub" style="width:100%">Search substance</button>
     <div class="msg" id="subMsg"></div>
     <div id="subHits" style="margin-top:10px"></div>
   </div>
 
   <div class="card" id="newForm" style="display:none">
-    <p class="eyebrow">Schritt 2 — Gebinde</p>
+    <p class="eyebrow">Step 2 — Container</p>
     <p class="hint" id="prefillNote" style="margin:-4px 0 10px"></p>
     <div class="field">
-      <label for="cname">Bezeichnung auf dem Etikett</label>
+      <label for="cname">Label text</label>
       <input id="cname" autocomplete="off">
     </div>
     <div class="chips" id="sizeChips" style="margin-bottom:9px"></div>
     <div class="row field">
       <div>
-        <label for="csize">Menge</label>
+        <label for="csize">Amount</label>
         <input id="csize" class="code" inputmode="decimal" placeholder="250" autocomplete="off">
       </div>
       <div>
-        <label for="cunit">Einheit</label>
+        <label for="cunit">Unit</label>
         <select id="cunit"></select>
       </div>
     </div>
     <div class="field">
-      <label for="csupp">Lieferant</label>
+      <label for="csupp">Supplier</label>
       <input id="csupp" list="suppList" autocomplete="off"><datalist id="suppList"></datalist>
       <div class="chips" id="suppChips" style="margin-top:8px"></div>
     </div>
     <div class="field">
-      <label for="cloc">Standort</label>
+      <label for="cloc">Location</label>
       <select id="cloc"></select>
     </div>
     <div class="field">
-      <label for="cbc">Container-Barcode <span id="bcHint" style="color:var(--amber)"></span></label>
+      <label for="cbc">Container barcode <span id="bcHint" style="color:var(--amber)"></span></label>
       <input id="cbc" class="code" autocomplete="off" autocapitalize="characters">
     </div>
     <div class="field">
-      <label for="ccom">Kommentar</label>
+      <label for="ccom">Comment</label>
       <input id="ccom" autocomplete="off">
     </div>
-    <button class="act" id="btnAdd">Container anlegen</button>
+    <button class="act" id="btnAdd">Add container</button>
     <div class="msg" id="addMsg"></div>
-    <p class="hint">Menge, Einheit, Lieferant und Standort bleiben für das nächste Gebinde stehen.</p>
+    <p class="hint">Amount, unit, supplier and location stay filled in for the next container.</p>
   </div>
 
   <div class="card">
-    <p class="eyebrow">Heute angelegt</p>
-    <ul class="log" id="newLog"><li class="empty-state">Noch nichts.</li></ul>
+    <p class="eyebrow">Added today</p>
+    <ul class="log" id="newLog"><li class="empty-state">Nothing yet.</li></ul>
   </div>
 </section>
 
@@ -335,7 +335,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 <script>
 "use strict";
 
-/* ---------- Speicher ---------- */
+/* ---------- Storage ---------- */
 const store = {
   get(k,d){ try{ const v=localStorage.getItem(k); return v===null?d:JSON.parse(v);}catch(e){return d;} },
   set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} },
@@ -369,14 +369,14 @@ async function api(path, body){
   });
   let j;
   try { j = await res.json(); }
-  catch(e){ throw new Error("Antwort war kein JSON (HTTP "+res.status+")"); }
+  catch(e){ throw new Error("Response was not JSON (HTTP "+res.status+")"); }
   if(j.status !== "success"){
-    throw new Error(typeof j.data === "string" ? j.data : "ChemInventory hat die Anfrage abgelehnt");
+    throw new Error(typeof j.data === "string" ? j.data : "ChemInventory rejected the request");
   }
   return j.data;
 }
 
-/* ---------- Rückmeldung ---------- */
+/* ---------- Feedback ---------- */
 function beep(good){
   try{
     const C = window.AudioContext || window.webkitAudioContext;
@@ -394,7 +394,7 @@ function msg(el, text, kind){
 }
 function clearMsg(el){ el.className = "msg"; el.textContent=""; }
 
-/* ---------- Standort-Pfade ---------- */
+/* ---------- Location paths ---------- */
 function buildLocations(inventory){
   const out=[]; const raw = inventory.locations || {};
   Object.keys(raw).forEach(invId=>{
@@ -406,13 +406,13 @@ function buildLocations(inventory){
       out.push({id:l.id, barcode:l.barcode||null, path:parts.join(" › ")});
     });
   });
-  out.sort((a,b)=> a.path.localeCompare(b.path,"de"));
+  out.sort((a,b)=> a.path.localeCompare(b.path,"en"));
   return out;
 }
 function fillLocSelects(){
   ["locSel","cloc"].forEach(id=>{
     const sel=$(id); const keep=sel.value;
-    sel.innerHTML = '<option value="">Standort wählen…</option>';
+    sel.innerHTML = '<option value="">Select location…</option>';
     S.locs.forEach(l=>{
       const o=document.createElement("option"); o.value=l.id; o.textContent=l.path; sel.appendChild(o);
     });
@@ -420,13 +420,13 @@ function fillLocSelects(){
   });
 }
 
-/* ---------- Verbindung ---------- */
+/* ---------- Connection ---------- */
 async function connect(){
   const m = $("setupMsg");
   S.url = $("url").value.trim(); S.token = $("tok").value.trim();
-  if(!S.url || !S.token){ msg(m,"Adresse und Token ausfüllen.","err"); return; }
+  if(!S.url || !S.token){ msg(m,"Enter both address and token.","err"); return; }
   store.set("ci.url", S.url); store.set("ci.token", S.token);
-  msg(m,"Prüfe…","good");
+  msg(m,"Checking…","good");
   try{
     const d = await api("/general/getdetails", {});
     S.user = d.user; S.inv = d.inventory;
@@ -435,13 +435,13 @@ async function connect(){
     S.supps = d.inventory.suppliers || [];
 
     $("dot").classList.add("live");
-    $("connTxt").textContent = d.inventory.name || "verbunden";
-    msg(m, "Verbindung steht.", "good");
+    $("connTxt").textContent = d.inventory.name || "connected";
+    msg(m, "Connected.", "good");
     $("whoami").style.display="block";
     $("whoamiBody").innerHTML =
       '<div style="font-size:15px;font-weight:600">'+esc((d.user.firstname||"")+" "+(d.user.lastname||""))+'</div>'+
       '<div class="bc" style="font-family:var(--mono);font-size:12px;color:var(--muted)">'+
-      esc(d.inventory.name||"")+" · "+S.locs.length+" Standorte · "+S.units.length+" Einheiten</div>";
+      esc(d.inventory.name||"")+" · "+S.locs.length+" locations · "+S.units.length+" units</div>";
 
     fillLocSelects();
     detectFields();
@@ -451,11 +451,11 @@ async function connect(){
     S.supps.forEach(s=>{ const o=document.createElement("option"); o.value=s.name; dl.appendChild(o); });
     beep(true);
   }catch(err){
-    $("dot").classList.remove("live"); $("connTxt").textContent="nicht verbunden";
+    $("dot").classList.remove("live"); $("connTxt").textContent="not connected";
     const t = String(err.message||err);
     msg(m, /Failed to fetch|NetworkError|Load failed/i.test(t)
-      ? "Keine Antwort erhalten. Das ist mit hoher Wahrscheinlichkeit CORS — siehe Kasten unten."
-      : "ChemInventory meldet: " + t, "err");
+      ? "No response received. This is most likely CORS — see the box below."
+      : "ChemInventory says: " + t, "err");
     beep(false);
   }
 }
@@ -467,9 +467,9 @@ const scanner = document.createElement("div");
 scanner.className="scanner";
 scanner.innerHTML =
   '<div class="viewport" id="vp"><video id="vid" playsinline muted></video><div class="reticle"></div></div>'+
-  '<div class="scanbar"><span class="lbl" id="scanLbl">Kamera aus</span>'+
-  '<button id="btnCam">Kamera starten</button></div>'+
-  '<div class="manual"><input id="man" class="code" placeholder="Barcode eintippen oder einscannen" autocomplete="off" autocapitalize="characters">'+
+  '<div class="scanbar"><span class="lbl" id="scanLbl">Camera off</span>'+
+  '<button id="btnCam">Start camera</button></div>'+
+  '<div class="manual"><input id="man" class="code" placeholder="Type or scan a barcode" autocomplete="off" autocapitalize="characters">'+
   '<button class="ghost" id="btnMan" style="flex:none">OK</button></div>';
 
 function mountScanner(slotId){
@@ -481,38 +481,38 @@ async function camStart(){
   if(running) return camStop();
   const lbl = $("scanLbl");
   if(!window.isSecureContext){
-    lbl.textContent = "Kein HTTPS — Kamera bleibt gesperrt";
+    lbl.textContent = "No HTTPS — camera stays locked";
     return;
   }
   if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-    lbl.textContent = "Browser gibt keinen Kamerazugriff";
+    lbl.textContent = "Browser does not provide camera access";
     return;
   }
   if(!("BarcodeDetector" in window)){
-    lbl.textContent = "Kamera-Erkennung fehlt — bitte tippen";
+    lbl.textContent = "Barcode detection unavailable — please type instead";
     return;
   }
   try{
     detector = detector || new window.BarcodeDetector({formats:["code_128","code_39","ean_13","ean_8","qr_code","codabar","itf","upc_a","upc_e"]});
     stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}});
     const v = $("vid"); v.srcObject = stream; await v.play();
-    $("vp").classList.add("on"); $("btnCam").textContent="Kamera aus";
-    lbl.textContent="Code ins Rechteck halten";
+    $("vp").classList.add("on"); $("btnCam").textContent="Stop camera";
+    lbl.textContent="Hold code inside the frame";
     running = true; loop();
   }catch(e){
     const n = e && e.name ? e.name : "";
     lbl.textContent =
-      n==="NotAllowedError"  ? "Zugriff abgelehnt — in den Seiteneinstellungen erlauben" :
-      n==="NotFoundError"    ? "Keine Kamera gefunden" :
-      n==="NotReadableError" ? "Kamera von einer anderen App belegt" :
-      n==="SecurityError"    ? "Vom Browser blockiert (Sicherheitskontext)" :
-      "Kamera-Fehler: " + (n || e.message || "unbekannt");
+      n==="NotAllowedError"  ? "Access denied — allow it in the site settings" :
+      n==="NotFoundError"    ? "No camera found" :
+      n==="NotReadableError" ? "Camera is in use by another app" :
+      n==="SecurityError"    ? "Blocked by the browser (security context)" :
+      "Camera error: " + (n || e.message || "unknown");
   }
 }
 function camStop(){
   running=false;
   if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-  $("vp").classList.remove("on"); $("btnCam").textContent="Kamera starten"; $("scanLbl").textContent="Kamera aus";
+  $("vp").classList.remove("on"); $("btnCam").textContent="Start camera"; $("scanLbl").textContent="Camera off";
 }
 async function loop(){
   if(!running) return;
@@ -535,11 +535,11 @@ function handleCode(code){
   if(sink) sink(code);
 }
 
-/* ---------- Ausleihen ---------- */
+/* ---------- Check out ---------- */
 function setTarget(id){
   const l = S.locs.find(x=> String(x.id)===String(id));
   S.target = l || null;
-  $("tgtName").textContent = l ? l.path : "noch nicht gesetzt";
+  $("tgtName").textContent = l ? l.path : "not set yet";
   $("tgtName").classList.toggle("empty", !l);
   $("locSel").value = l ? l.id : "";
   if(S.pending) renderPending();
@@ -550,21 +550,21 @@ function detectFields(){
   S.cfWho  = (cf.find(f => /ausgeliehen an|entliehen an|ausleihe|borrow|inhaber|nutzer/.test(norm(f.name))) || {}).id || null;
   S.cfWhen = (cf.find(f => f.type==="date" && /ausgeliehen|entliehen|ausleih|borrow/.test(norm(f.name)))  || {}).id || null;
   const h = $("cfHint");
-  if(S.cfWho && S.cfWhen) h.textContent = "Name und Datum werden in die Containerfelder geschrieben.";
-  else if(S.cfWho)        h.textContent = "Name wird geschrieben. Für das Datum fehlt ein Datumsfeld in ChemInventory.";
-  else                    h.textContent = "In ChemInventory sind noch keine Felder für die Ausleihe angelegt — der Name steht dann nur hier im Protokoll und im Zielstandort.";
+  if(S.cfWho && S.cfWhen) h.textContent = "Name and date will be written to the container fields.";
+  else if(S.cfWho)        h.textContent = "Name will be written. There's no date field set up in ChemInventory for the date.";
+  else                    h.textContent = "No borrowing fields are set up in ChemInventory yet — the name will only appear here in the log and at the destination location.";
 }
 
 function renderPeople(){
   const box = $("people"); box.innerHTML="";
   if(!S.people.length){
-    const p=document.createElement("span"); p.className="empty-state"; p.textContent="Noch niemand angelegt.";
+    const p=document.createElement("span"); p.className="empty-state"; p.textContent="No one added yet.";
     box.appendChild(p);
   }
   S.people.forEach(name=>{
     const b=document.createElement("button"); b.className="chip";
     b.setAttribute("aria-pressed", String(name===S.person));
-    b.innerHTML = esc(name) + '<span class="x" title="entfernen">×</span>';
+    b.innerHTML = esc(name) + '<span class="x" title="remove">×</span>';
     b.onclick = ev => {
       if(ev.target.classList.contains("x")){
         S.people = S.people.filter(n=>n!==name);
@@ -577,8 +577,8 @@ function renderPeople(){
     box.appendChild(b);
   });
   $("whoLine").textContent = S.mode==="in"
-    ? "Rückgabe — Ausleihe wird geleert"
-    : (S.person ? "an " + S.person + " · " + new Date().toLocaleDateString("de-DE") : "niemand gewählt");
+    ? "Return — borrow info will be cleared"
+    : (S.person ? "to " + S.person + " · " + new Date().toLocaleDateString("en-GB") : "no one selected");
   if(S.pending) renderPending();
 }
 
@@ -632,7 +632,7 @@ async function prefillFromExisting(sid){
   try{
     const d = await api("/search/execute", {inventory:S.user.inventory, type:"substanceid", contents:String(sid)});
     const cs = d.containers||[];
-    if(!cs.length){ note.textContent="Erstes Gebinde dieser Substanz."; return; }
+    if(!cs.length){ note.textContent="First container for this substance."; return; }
     const top = arr => {
       const m={}; arr.forEach(v=>{ if(v!==""&&v!=null) m[v]=(m[v]||0)+1; });
       const k=Object.keys(m); if(!k.length) return "";
@@ -644,7 +644,7 @@ async function prefillFromExisting(sid){
     if(sizeKey){ const p=sizeKey.split("|"); $("csize").value=p[0]; $("cunit").value=p[1]; }
     if(supp) $("csupp").value = supp;
     if(loc && !$("cloc").value) $("cloc").value = loc;
-    note.textContent = "Vorbelegt aus "+cs.length+" vorhandenen Gebinde"+(cs.length>1?"n":"")+" dieser Substanz.";
+    note.textContent = "Pre-filled from "+cs.length+" existing container"+(cs.length>1?"s":"")+" of this substance.";
   }catch(e){ note.textContent=""; }
 }
 
@@ -652,7 +652,7 @@ function logAdd(listId, ok, title, sub){
   const ul = $(listId);
   const es = ul.querySelector(".empty-state"); if(es) es.remove();
   const li = document.createElement("li");
-  const t = new Date().toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"});
+  const t = new Date().toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
   li.innerHTML = '<span class="mark '+(ok?"ok":"bad")+'">'+(ok?"✓":"✕")+'</span>'+
                  '<span class="body"><span>'+esc(title)+'</span><br><span class="bc">'+esc(sub)+'</span></span>'+
                  '<span class="t">'+t+'</span>';
@@ -660,14 +660,18 @@ function logAdd(listId, ok, title, sub){
 }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
-function buildLendNote(person, prevPath){
-  return "[Ausleihe] " + person + " · " + new Date().toISOString().slice(0,10) + " · vorher: " + prevPath;
+function buildLendNote(person, prevPath, dateStr, phone, lab){
+  let s = "[Checkout] " + person + " · " + dateStr + " · previously: " + prevPath;
+  if(phone) s += " · ext: " + phone;
+  if(lab) s += " · lab: " + lab;
+  return s;
 }
 function parseLendNote(text){
   const lines = String(text||"").split("\n");
-  const m = /^\[Ausleihe\]\s*(.*?)\s*·\s*([\d-]+)\s*·\s*vorher:\s*(.+)$/.exec(lines[0]||"");
+  const first = lines[0] || "";
+  const m = /^\[(?:Checkout|Ausleihe)\]\s*(.*?)\s*·\s*([\d-]+)\s*·\s*(?:previously|vorher):\s*([^·]+?)(?:\s*·\s*(?:ext|Tel):\s*(\d+))?(?:\s*·\s*(?:lab|Labor):\s*([\d.]+))?\s*$/i.exec(first);
   if(!m) return null;
-  return { person:m[1], date:m[2], locPath:m[3], rest: lines.slice(1).join("\n") };
+  return { person:m[1], date:m[2], locPath:m[3].trim(), phone:m[4]||"", lab:m[5]||"", rest: lines.slice(1).join("\n") };
 }
 
 function renderPending(){
@@ -678,15 +682,40 @@ function renderPending(){
   let html = '<div style="font-size:15px;font-weight:600;margin-bottom:4px">'+esc(c.name)+'</div>'+
              '<div class="bc" style="margin-bottom:8px">'+esc(p.code)+'</div>';
   if(p.mode === "out"){
-    html += '<div style="font-size:14px">Ziel: '+(S.target?esc(S.target.path):'<span style="color:var(--bad)">keins gewählt</span>')+'</div>'+
-            '<div style="font-size:14px;margin-top:3px">An: '+(S.person?esc(S.person):'<span style="color:var(--bad)">niemand gewählt</span>')+'</div>';
+    html += '<div style="font-size:14px">Target: '+(S.target?esc(S.target.path):'<span style="color:var(--bad)">none selected</span>')+'</div>'+
+      '<div class="field" style="margin-top:10px;margin-bottom:8px">'+
+        '<label for="pendPerson">Borrower</label><select id="pendPerson"></select>'+
+      '</div>'+
+      '<div class="row field">'+
+        '<div><label for="pendDate">Date</label><input type="date" id="pendDate"></div>'+
+        '<div><label for="pendPhone">Ext. (3 digits)</label><input id="pendPhone" class="code" inputmode="numeric" placeholder="123"></div>'+
+      '</div>'+
+      '<div class="field" style="margin-bottom:0"><label for="pendLab">Lab number</label><input id="pendLab" class="code" placeholder="2.045"></div>';
   } else {
-    html += '<div style="font-size:14px">Zurück nach: '+(S.target?esc(S.target.path):'<span style="color:var(--bad)">bitte wählen</span>')+'</div>'+
+    html += '<div style="font-size:14px">Back to: '+(S.target?esc(S.target.path):'<span style="color:var(--bad)">please choose</span>')+'</div>'+
       (p.parsed
-        ? '<p class="hint" style="margin:6px 0 0">Vorheriger Ort aus dem Kommentar übernommen — bei Bedarf oben im Dropdown ändern.</p>'
-        : '<p class="hint" style="margin:6px 0 0">Kein vorheriger Ort im Kommentar gefunden — bitte Standort wählen.</p>');
+        ? '<p class="hint" style="margin:6px 0 0">Previous location taken from the comment — change it in the dropdown above if needed.</p>'
+        : '<p class="hint" style="margin:6px 0 0">No previous location found in the comment — please choose a location.</p>');
   }
   body.innerHTML = html;
+
+  if(p.mode === "out"){
+    const selP = $("pendPerson");
+    selP.innerHTML = '<option value="">— none —</option>' + S.people.map(n=>'<option value="'+esc(n)+'"'+(n===S.person?' selected':'')+'>'+esc(n)+'</option>').join('');
+    selP.onchange = ()=>{ S.person = selP.value; store.set("ci.person", S.person); renderPeople(); };
+
+    const dateEl = $("pendDate");
+    dateEl.value = p.date || new Date().toISOString().slice(0,10);
+    dateEl.onchange = ()=>{ p.date = dateEl.value; };
+
+    const phoneEl = $("pendPhone");
+    phoneEl.value = p.phone || "";
+    phoneEl.oninput = ()=>{ p.phone = phoneEl.value.replace(/\D/g,"").slice(0,3); if(phoneEl.value!==p.phone) phoneEl.value = p.phone; };
+
+    const labEl = $("pendLab");
+    labEl.value = p.lab || "";
+    labEl.oninput = ()=>{ p.lab = labEl.value; };
+  }
 }
 
 function cancelPending(){ S.pending = null; renderPending(); }
@@ -694,28 +723,28 @@ function cancelPending(){ S.pending = null; renderPending(); }
 async function confirmPending(){
   if(!S.pending) return;
   const p = S.pending, c = p.container;
-  if(!S.target){ logAdd("lendLog", false, "Kein Ziel gewählt", p.code); beep(false); return; }
+  if(!S.target){ logAdd("lendLog", false, "No target selected", p.code); beep(false); return; }
   const btn = $("btnConfirmPending"); btn.disabled = true;
   try{
     const prevLoc = S.locs.find(l=> String(l.id)===String(c.location));
-    const prevPath = prevLoc ? prevLoc.path : "unbekannt";
+    const prevPath = prevLoc ? prevLoc.path : "unknown";
 
     await api("/container/move", {containerid:[c.id], destinationid:S.target.id});
     let note = p.code + " → " + S.target.path;
 
     if(p.mode === "out"){
       if(!S.person && (S.cfWho || S.people.length)){
-        logAdd("lendLog", false, "Keine Person gewählt — nur verschoben", note);
+        logAdd("lendLog", false, "No borrower selected — only moved", note);
       } else {
-        const heute = new Date().toISOString().slice(0,10);
+        const dateStr = p.date || new Date().toISOString().slice(0,10);
         try{
           await writeField(c.id, S.cfWho, S.person);
-          await writeField(c.id, S.cfWhen, heute);
-        }catch(e){ note += " · Feld nicht geschrieben: " + (e.message||e); }
+          await writeField(c.id, S.cfWhen, dateStr);
+        }catch(e){ note += " · field not written: " + (e.message||e); }
         try{
-          const newComments = buildLendNote(S.person || "unbekannt", prevPath) + (c.comments ? "\n"+c.comments : "");
+          const newComments = buildLendNote(S.person || "unknown", prevPath, dateStr, p.phone, p.lab) + (c.comments ? "\n"+c.comments : "");
           await api("/container/information/save", {containerid:c.id, field:"comments", newvalue:newComments});
-        }catch(e){ note += " · Kommentar nicht geschrieben: " + (e.message||e); }
+        }catch(e){ note += " · comment not written: " + (e.message||e); }
         if(S.person) note = p.code + " → " + S.person + " · " + S.target.path;
         logAdd("lendLog", true, c.name, note);
       }
@@ -723,12 +752,12 @@ async function confirmPending(){
       try{
         await writeField(c.id, S.cfWho, "");
         await writeField(c.id, S.cfWhen, "");
-      }catch(e){ note += " · Feld nicht geleert: " + (e.message||e); }
+      }catch(e){ note += " · field not cleared: " + (e.message||e); }
       try{
         const restored = p.parsed ? p.parsed.rest : (c.comments||"");
         await api("/container/information/save", {containerid:c.id, field:"comments", newvalue:restored});
-      }catch(e){ note += " · Kommentar nicht geleert: " + (e.message||e); }
-      note = p.code + " → zurück nach " + S.target.path;
+      }catch(e){ note += " · comment not cleared: " + (e.message||e); }
+      note = p.code + " → back to " + S.target.path;
       logAdd("lendLog", true, c.name, note);
     }
 
@@ -743,14 +772,14 @@ async function confirmPending(){
 }
 
 async function stageLendCode(code){
-  if(!S.token){ logAdd("lendLog", false, "Nicht verbunden", "Erst unter Zugang anmelden"); beep(false); return; }
+  if(!S.token){ logAdd("lendLog", false, "Not connected", "Sign in under Access first"); beep(false); return; }
   const loc = S.locs.find(l=> l.barcode && l.barcode.toLowerCase()===code.toLowerCase());
-  if(loc){ setTarget(loc.id); beep(true); logAdd("lendLog", true, "Ziel gesetzt", loc.path); return; }
-  if(S.mode === "out" && !S.target){ logAdd("lendLog", false, "Kein Ziel gesetzt", code); beep(false); return; }
+  if(loc){ setTarget(loc.id); beep(true); logAdd("lendLog", true, "Target set", loc.path); return; }
+  if(S.mode === "out" && !S.target){ logAdd("lendLog", false, "No target set", code); beep(false); return; }
   try{
     const d = await api("/search/execute", {inventory:S.user.inventory, type:"barcode", contents:code});
     const c = (d.containers||[])[0];
-    if(!c){ logAdd("lendLog", false, "Kein Container zu diesem Code", code); beep(false); return; }
+    if(!c){ logAdd("lendLog", false, "No container for this code", code); beep(false); return; }
 
     let parsed = null;
     if(S.mode === "in"){
@@ -759,7 +788,10 @@ async function stageLendCode(code){
       setTarget(prevLoc ? prevLoc.id : (S.target ? S.target.id : ""));
     }
 
-    S.pending = {code, container:c, mode:S.mode, parsed};
+    S.pending = {
+      code, container:c, mode:S.mode, parsed,
+      date: new Date().toISOString().slice(0,10), phone:"", lab:""
+    };
     renderPending();
     beep(true);
   }catch(err){
@@ -767,17 +799,17 @@ async function stageLendCode(code){
   }
 }
 
-/* ---------- Neu anlegen ---------- */
+/* ---------- New item ---------- */
 async function findSubstance(){
   const m=$("subMsg"); clearMsg(m); $("subHits").innerHTML="";
   const cas = $("cas").value.trim(), nm = $("sname").value.trim();
-  if(!cas && !nm){ msg(m,"CAS oder Name angeben.","err"); return; }
+  if(!cas && !nm){ msg(m,"Enter a CAS number or name.","err"); return; }
   try{
     const hits = await api("/container/getsubstance", {name: nm || "N/A", cas: cas || "N/A"});
-    if(!hits || !hits.length){ msg(m,"Nichts gefunden.","err"); return; }
+    if(!hits || !hits.length){ msg(m,"Nothing found.","err"); return; }
     hits.slice(0,6).forEach(h=>{
       const b=document.createElement("button"); b.className="pick";
-      b.innerHTML = "<b>"+esc(h.name)+"</b><span>CAS "+esc(h.cas||"—")+(h.molecularweight?" · M "+esc(h.molecularweight):"")+"</span>";
+      b.innerHTML = "<b>"+esc(h.name)+"</b><span>CAS "+esc(h.cas||"—")+(h.molecularweight?" · MW "+esc(h.molecularweight):"")+"</span>";
       b.onclick = ()=> pickSubstance(h);
       $("subHits").appendChild(b);
     });
@@ -787,10 +819,10 @@ async function findSubstance(){
 function pickSubstance(h){
   S.substance = h;
   $("subHits").innerHTML="";
-  msg($("subMsg"), "Gewählt: "+h.name, "good");
+  msg($("subMsg"), "Selected: "+h.name, "good");
   $("cname").value = h.name || "";
   $("newForm").style.display="block";
-  $("bcHint").textContent = "— Scan füllt dieses Feld";
+  $("bcHint").textContent = "— scanning fills this field";
   if(!$("cloc").value && S.recent.loc) $("cloc").value = S.recent.loc;
   renderQuick();
   prefillFromExisting(h.id);
@@ -801,9 +833,9 @@ function pickSubstance(h){
 }
 async function addContainer(){
   const m=$("addMsg"); clearMsg(m);
-  if(!S.substance){ msg(m,"Erst eine Substanz wählen.","err"); return; }
+  if(!S.substance){ msg(m,"Choose a substance first.","err"); return; }
   const locId = $("cloc").value;
-  if(!locId){ msg(m,"Standort wählen.","err"); return; }
+  if(!locId){ msg(m,"Choose a location.","err"); return; }
   const rec = {
     name: $("cname").value.trim() || S.substance.name,
     locationid: Number(locId),
@@ -819,8 +851,8 @@ async function addContainer(){
   try{
     await api("/container/add", {data:[rec]});
     remember(rec.containersize, $("cunit").value, rec.supplier, locId);
-    logAdd("newLog", true, rec.name, (rec.barcode||"ohne Barcode")+" · "+(rec.containersize||"?")+" "+unitLabel($("cunit").value)+" · "+(S.locs.find(l=>String(l.id)===String(locId))||{}).path);
-    msg(m,"Angelegt. Nächstes Gebinde: Barcode scannen.","good");
+    logAdd("newLog", true, rec.name, (rec.barcode||"no barcode")+" · "+(rec.containersize||"?")+" "+unitLabel($("cunit").value)+" · "+(S.locs.find(l=>String(l.id)===String(locId))||{}).path);
+    msg(m,"Added. Next container: scan a barcode.","good");
     $("cbc").value=""; $("ccom").value="";
     beep(true);
   }catch(err){ msg(m, String(err.message||err), "err"); beep(false); }
@@ -834,12 +866,12 @@ function show(p){
     $("tab-"+k).setAttribute("aria-selected", String(k===p));
   });
   if(p!=="lend") cancelPending();
-  if(p==="lend"){ mountScanner("lendSlot"); sink = stageLendCode; $("scanLbl").textContent = running?"Code ins Rechteck halten":"Kamera aus"; }
+  if(p==="lend"){ mountScanner("lendSlot"); sink = stageLendCode; $("scanLbl").textContent = running?"Hold code inside the frame":"Camera off"; }
   else if(p==="new"){ mountScanner("newSlot"); sink = code => {
       const isCas = /^\d{2,7}-\d{2}-\d$/.test(code.trim());
       if(isCas){ $("cas").value = code; beep(true); }
       else if(S.substance){ $("cbc").value = code; beep(true); }
-      else { msg($("subMsg"), "Barcode erkannt, aber noch keine Substanz gewählt — erst CAS-Nummer oder Name suchen.", "err"); beep(false); }
+      else { msg($("subMsg"), "Barcode recognized, but no substance selected yet — search by CAS number or name first.", "err"); beep(false); }
     };
   }
   else { camStop(); sink=null; }
@@ -860,7 +892,7 @@ $("btnPerson").onclick = ()=>{
   const i=$("newPerson"), v=i.value.trim();
   if(!v) return;
   if(!S.people.includes(v)) S.people.push(v);
-  S.people.sort((a,b)=>a.localeCompare(b,"de"));
+  S.people.sort((a,b)=>a.localeCompare(b,"en"));
   S.person = v; store.set("ci.people", S.people); store.set("ci.person", v);
   i.value=""; renderPeople();
 };
