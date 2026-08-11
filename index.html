@@ -158,6 +158,16 @@ video{width:100%;height:100%;object-fit:cover;display:block}
 .pick b{display:block;font-size:14.5px}
 .pick span{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
 
+/* ---- Toast ---- */
+.toast{
+  position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(10px);
+  background:var(--surface-2);border:1px solid var(--line);color:var(--ink);
+  padding:12px 20px;border-radius:10px;font-size:14px;font-weight:600;
+  box-shadow:0 8px 24px rgba(0,0,0,.4);opacity:0;transition:opacity .2s,transform .2s;
+  z-index:50;pointer-events:none;max-width:calc(100vw - 32px);text-align:center;
+}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
 /* ---- People & mode ---- */
 .seg{display:flex;gap:0;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-bottom:12px}
 .seg button{
@@ -322,6 +332,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
     <div class="field">
       <label for="cloc">Location</label>
       <select id="cloc"></select>
+      <p class="hint" id="clocHint" style="margin-top:4px"></p>
     </div>
     <div class="field">
       <label for="cbc">Container barcode <span id="bcHint" style="color:var(--amber)"></span></label>
@@ -405,6 +416,17 @@ function msg(el, text, kind){
   el.className = "msg on " + (kind==="err"?"err":"good");
 }
 function clearMsg(el){ el.className = "msg"; el.textContent=""; }
+function showToast(text){
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.textContent = text;
+  document.body.appendChild(t);
+  requestAnimationFrame(()=> t.classList.add("on"));
+  setTimeout(()=>{
+    t.classList.remove("on");
+    setTimeout(()=> t.remove(), 250);
+  }, 2000);
+}
 
 /* ---------- Location paths ---------- */
 function buildLocations(inventory){
@@ -673,27 +695,51 @@ async function prefillFromExisting(sid){
   }catch(e){ note.textContent=""; }
 }
 
+function extractFormulaFromSubstance(h){
+  for(const k of Object.keys(h||{})){
+    if(/formula/i.test(k)){
+      const v = h[k];
+      if(typeof v === "string" && v.trim() && v.trim().length < 40) return v.trim();
+    }
+  }
+  return null;
+}
+
+function appendNote(text){
+  const note = $("prefillNote");
+  note.textContent = note.textContent ? note.textContent + " " + text : text;
+}
+
 async function suggestLocationByFormula(h){
   if($("cloc").value) return;
-  if(!h.cas || h.cas === "N/A") return;
-  try{
-    const res = await fetch("https://pubchem.ncbi.gov/rest/pug/compound/xref/RN/"+encodeURIComponent(h.cas)+"/property/MolecularFormula/JSON");
-    if(!res.ok) return;
-    const data = await res.json();
-    const props = data && data.PropertyTable && data.PropertyTable.Properties;
-    const formula = props && props[0] && props[0].MolecularFormula;
-    if(!formula) return;
-    const m = /^C(?![a-z])(\d*)/.exec(formula);
-    if(!m) return;
-    const carbons = parseInt(m[1] || "1", 10);
-    const loc = locationForCarbonCount(carbons);
-    if(loc && !$("cloc").value){
-      $("cloc").value = loc.id;
-      const note = $("prefillNote");
-      const extra = "Suggested by carbon count (C"+carbons+", "+formula+") — please double-check.";
-      note.textContent = note.textContent ? note.textContent + " " + extra : extra;
+  let formula = extractFormulaFromSubstance(h);
+  let source = "ChemInventory";
+  if(!formula){
+    if(!h.cas || h.cas === "N/A") return;
+    source = "PubChem";
+    try{
+      const res = await fetch("https://pubchem.ncbi.gov/rest/pug/compound/xref/RN/"+encodeURIComponent(h.cas)+"/property/MolecularFormula/JSON");
+      if(!res.ok){ appendNote("Carbon-count lookup: substance not found in PubChem (HTTP "+res.status+")."); return; }
+      const data = await res.json();
+      const props = data && data.PropertyTable && data.PropertyTable.Properties;
+      formula = props && props[0] && props[0].MolecularFormula;
+      if(!formula){ appendNote("Carbon-count lookup: PubChem returned no formula."); return; }
+    }catch(e){
+      appendNote("Carbon-count lookup failed (network/CORS): "+(e.message||e)+".");
+      return;
     }
-  }catch(e){ /* PubChem unreachable or blocked — leave location for manual selection */ }
+  }
+  const m = /^C(?![a-z])(\d*)/.exec(formula);
+  if(!m){ appendNote("Formula "+formula+" has no carbon — pick a location manually."); return; }
+  const carbons = parseInt(m[1] || "1", 10);
+  $("clocHint").textContent = "formula: "+formula+" → c"+carbons;
+  const loc = locationForCarbonCount(carbons);
+  if(loc && !$("cloc").value){
+    $("cloc").value = loc.id;
+    appendNote("Suggested by carbon count (C"+carbons+", "+formula+", via "+source+") — please double-check.");
+  } else if(!loc){
+    appendNote("C"+carbons+" ("+formula+") doesn't match any configured C-range location.");
+  }
 }
 
 function logAdd(listId, ok, title, sub){
@@ -901,11 +947,25 @@ async function addContainer(){
     await api("/container/add", {data:[rec]});
     remember(rec.containersize, $("cunit").value, rec.supplier, locId);
     logAdd("newLog", true, rec.name, (rec.barcode||"no barcode")+" · "+(rec.containersize||"?")+" "+unitLabel($("cunit").value)+" · "+(S.locs.find(l=>String(l.id)===String(locId))||{}).path);
-    msg(m,"Added. Next container: scan a barcode.","good");
-    $("cbc").value=""; $("ccom").value="";
+    showToast("Added: "+rec.name);
     beep(true);
+    resetNewItemForm();
   }catch(err){ msg(m, String(err.message||err), "err"); beep(false); }
   finally{ $("btnAdd").disabled=false; }
+}
+function resetNewItemForm(){
+  S.substance = null;
+  $("cas").value = ""; $("sname").value = "";
+  clearMsg($("subMsg")); $("subHits").innerHTML = "";
+  $("newForm").style.display = "none";
+  $("cname").value = "";
+  $("csize").value = ""; if($("cunit").options.length) $("cunit").selectedIndex = 0;
+  $("csupp").value = "";
+  $("cloc").value = ""; $("clocHint").textContent = "";
+  $("cbc").value = ""; $("ccom").value = "";
+  $("prefillNote").textContent = "";
+  $("bcHint").textContent = "";
+  clearMsg($("addMsg"));
 }
 
 /* ---------- Tabs ---------- */
