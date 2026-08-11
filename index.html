@@ -706,6 +706,14 @@ async function prefillFromExisting(sid){
   }catch(e){ note.textContent=""; }
 }
 
+const SUBSCRIPT_DIGITS = {"₀":"0","₁":"1","₂":"2","₃":"3","₄":"4","₅":"5","₆":"6","₇":"7","₈":"8","₉":"9"};
+function normalizeFormula(s){
+  // Wikidata (and some other sources) return formulas with Unicode subscript
+  // digits for display (e.g. "C₈H₁₁N") instead of plain digits — \d doesn't
+  // match those, so they'd otherwise silently parse as carbon count 1.
+  return String(s||"").replace(/[₀₁₂₃₄₅₆₇₈₉]/g, ch => SUBSCRIPT_DIGITS[ch]);
+}
+
 function extractFormulaFromSubstance(h){
   if(!h || typeof h !== "object") return null;
   for(const k of Object.keys(h)){
@@ -797,6 +805,7 @@ async function suggestLocationByFormula(h, retrieved){
       return;
     }
   }
+  formula = normalizeFormula(formula);
   const m = /^C(?![a-z])(\d*)/.exec(formula);
   if(!m){ appendNote("Formula "+formula+" has no carbon — pick a location manually."); return; }
   const carbons = parseInt(m[1] || "1", 10);
