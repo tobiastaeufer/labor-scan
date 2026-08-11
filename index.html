@@ -727,12 +727,28 @@ function appendNote(text){
   note.textContent = note.textContent ? note.textContent + " " + text : text;
 }
 
+const WORKER_PROXY = "https://labor-scan-proxy.tobias-taeufer.workers.dev/?url=";
+
+async function fetchJsonWithFallbacks(target, extraProxies){
+  // Own Cloudflare Worker first (reliable, server-side, adds CORS headers),
+  // then a direct attempt, then a couple of public CORS proxies as a last
+  // resort. Any of these can go down independently of the others.
+  const attempts = [ WORKER_PROXY+encodeURIComponent(target), target ].concat(extraProxies||[]);
+  let lastErr = new Error("fetch failed");
+  for(const url of attempts){
+    try{
+      const res = await fetch(url);
+      if(!res.ok){ lastErr = new Error("HTTP "+res.status+" from "+new URL(url).hostname); continue; }
+      return await res.json();
+    }catch(e){ lastErr = e; }
+  }
+  throw lastErr;
+}
+
 async function fetchFormulaFromWikidata(cas){
   const query = 'SELECT ?formula WHERE { ?compound wdt:P231 "'+cas+'". ?compound wdt:P274 ?formula. } LIMIT 1';
-  const url = "https://query.wikidata.org/sparql?format=json&query="+encodeURIComponent(query);
-  const res = await fetch(url, { headers: { "Accept": "application/sparql-results+json" } });
-  if(!res.ok) throw new Error("HTTP "+res.status+" from Wikidata");
-  const data = await res.json();
+  const target = "https://query.wikidata.org/sparql?format=json&query="+encodeURIComponent(query);
+  const data = await fetchJsonWithFallbacks(target);
   const bindings = data && data.results && data.results.bindings;
   const formula = bindings && bindings[0] && bindings[0].formula && bindings[0].formula.value;
   if(!formula) throw new Error("no formula in Wikidata response");
@@ -740,9 +756,8 @@ async function fetchFormulaFromWikidata(cas){
 }
 
 async function fetchFormulaFromCasCommonChemistry(cas){
-  const res = await fetch("https://commonchemistry.cas.org/api/detail?cas_rn="+encodeURIComponent(cas));
-  if(!res.ok) throw new Error("HTTP "+res.status+" from CAS Common Chemistry");
-  const data = await res.json();
+  const target = "https://commonchemistry.cas.org/api/detail?cas_rn="+encodeURIComponent(cas);
+  const data = await fetchJsonWithFallbacks(target);
   const raw = data && data.molecularFormula;
   if(!raw) throw new Error("no formula in CAS Common Chemistry response");
   return raw.replace(/<[^>]+>/g, "").trim(); // strips <sub>/<i> markup around the formula
@@ -750,28 +765,15 @@ async function fetchFormulaFromCasCommonChemistry(cas){
 
 async function fetchPubchemFormula(cas){
   const target = "https://pubchem.ncbi.gov/rest/pug/compound/xref/RN/"+encodeURIComponent(cas)+"/property/MolecularFormula/JSON";
-  // Direct PubChem access fails with a CORS error from the browser, so this
-  // tries a couple of public CORS proxies as a best-effort fallback chain.
-  // Any one of these can go down independently, hence trying more than one.
-  const attempts = [
-    target,
+  const data = await fetchJsonWithFallbacks(target, [
     "https://corsproxy.io/?url="+encodeURIComponent(target),
     "https://api.allorigins.win/raw?url="+encodeURIComponent(target),
     "https://thingproxy.freeboard.io/fetch/"+target
-  ];
-  let lastErr = new Error("no formula found");
-  for(const url of attempts){
-    try{
-      const res = await fetch(url);
-      if(!res.ok){ lastErr = new Error("HTTP "+res.status+" from "+new URL(url).hostname); continue; }
-      const data = await res.json();
-      const props = data && data.PropertyTable && data.PropertyTable.Properties;
-      const formula = props && props[0] && props[0].MolecularFormula;
-      if(formula) return formula;
-      lastErr = new Error("no formula in response from "+new URL(url).hostname);
-    }catch(e){ lastErr = e; }
-  }
-  throw lastErr;
+  ]);
+  const props = data && data.PropertyTable && data.PropertyTable.Properties;
+  const formula = props && props[0] && props[0].MolecularFormula;
+  if(!formula) throw new Error("no formula in PubChem response");
+  return formula;
 }
 
 async function suggestLocationByFormula(h, retrieved){
