@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E1114">
+<title>Laborbuchung</title>
+<style>
+:root{
+  --bg:#0E1114;
+  --surface:#171C21;
+  --surface-2:#1F262C;
+  --line:#2A3238;
+  --ink:#E8EDF1;
+  --muted:#8A97A3;
+  --amber:#E8B23A;      /* Braunglas */
+  --ok:#5FD68A;
+  --bad:#F2695C;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:16px;line-height:1.45;
+  padding-bottom:env(safe-area-inset-bottom);
+  -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:560px;margin:0 auto;padding:0 14px 40px}
+
+/* ---- Kopf ---- */
+header{
+  position:sticky;top:0;z-index:20;background:var(--bg);
+  padding:12px 0 8px;border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand h1{
+  font-size:18px;font-weight:650;letter-spacing:-.02em;margin:0;
+}
+.conn{
+  margin-left:auto;font-family:var(--mono);font-size:11px;
+  color:var(--muted);display:flex;align-items:center;gap:6px;
+}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--bad);flex:none}
+.dot.live{background:var(--ok)}
+
+/* ---- Tabs ---- */
+nav{display:flex;gap:6px;margin-top:10px}
+nav button{
+  flex:1;appearance:none;border:1px solid var(--line);background:transparent;
+  color:var(--muted);font-family:var(--sans);font-size:13px;font-weight:600;
+  padding:9px 4px;border-radius:8px;cursor:pointer;
+}
+nav button[aria-selected="true"]{background:var(--surface-2);color:var(--ink);border-color:#3A454D}
+nav button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
+/* ---- Bausteine ---- */
+.panel{display:none;padding-top:14px}
+.panel.on{display:block}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.eyebrow{
+  font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);margin:0 0 8px;
+}
+label{display:block;font-size:13px;color:var(--muted);margin:0 0 5px}
+input,select,textarea{
+  width:100%;background:var(--surface-2);color:var(--ink);
+  border:1px solid var(--line);border-radius:9px;padding:12px;
+  font-size:16px;font-family:var(--sans);
+}
+input.code{font-family:var(--mono);letter-spacing:.06em}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--amber);outline-offset:1px;border-color:transparent}
+.row{display:flex;gap:8px}
+.row>*{flex:1}
+.field{margin-bottom:11px}
+button.act{
+  width:100%;appearance:none;border:none;border-radius:10px;
+  background:var(--amber);color:#141008;font-weight:700;font-size:16px;
+  padding:14px;cursor:pointer;font-family:var(--sans);
+}
+button.act:disabled{background:#3A3730;color:#7A7568;cursor:default}
+button.ghost{
+  appearance:none;background:transparent;border:1px solid var(--line);
+  color:var(--ink);border-radius:9px;padding:12px;font-size:14px;
+  font-family:var(--sans);cursor:pointer;
+}
+button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.hint{font-size:12.5px;color:var(--muted);margin:8px 0 0}
+
+/* ---- Scanner ---- */
+#scanhost{margin-bottom:12px}
+.scanner{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#000}
+.viewport{position:relative;aspect-ratio:4/3;background:#000;display:none}
+.viewport.on{display:block}
+video{width:100%;height:100%;object-fit:cover;display:block}
+.reticle{
+  position:absolute;inset:22% 10%;border:2px solid var(--amber);border-radius:6px;
+  box-shadow:0 0 0 2000px rgba(0,0,0,.34);
+}
+.scanbar{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);
+}
+.scanbar .lbl{font-family:var(--mono);font-size:11px;color:var(--muted);flex:1;letter-spacing:.05em}
+.scanbar button{
+  appearance:none;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);
+  border-radius:8px;padding:9px 14px;font-size:13.5px;font-weight:600;cursor:pointer;
+  font-family:var(--sans);
+}
+.manual{display:flex;gap:8px;padding:0 12px 12px;background:var(--surface)}
+.manual input{flex:1}
+
+/* ---- Zielleiste: das Signaturelement ---- */
+.target{
+  display:flex;align-items:center;gap:12px;
+  background:linear-gradient(90deg,rgba(232,178,58,.16),rgba(232,178,58,.04));
+  border:1px solid rgba(232,178,58,.4);border-left:4px solid var(--amber);
+  border-radius:10px;padding:11px 13px;margin-bottom:12px;
+}
+.target .k{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--amber);text-transform:uppercase}
+.target .v{font-size:15px;font-weight:600;line-height:1.3;word-break:break-word}
+.target .v.empty{color:var(--muted);font-weight:400}
+.target .count{
+  margin-left:auto;flex:none;font-family:var(--mono);font-size:22px;font-weight:700;
+  color:var(--amber);line-height:1;text-align:right;
+}
+.target .count small{display:block;font-size:9px;letter-spacing:.1em;color:var(--muted);font-weight:400;margin-top:3px}
+
+/* ---- Protokoll ---- */
+.log{list-style:none;margin:0;padding:0}
+.log li{
+  display:flex;gap:10px;align-items:flex-start;
+  padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;
+}
+.log li:last-child{border-bottom:none}
+.log .mark{font-family:var(--mono);font-size:13px;flex:none;width:14px;text-align:center;line-height:1.5}
+.log .ok{color:var(--ok)} .log .bad{color:var(--bad)}
+.log .body{flex:1;min-width:0}
+.log .bc{font-family:var(--mono);font-size:11.5px;color:var(--muted);letter-spacing:.05em}
+.log .t{font-family:var(--mono);font-size:11px;color:var(--muted);flex:none}
+.empty-state{color:var(--muted);font-size:13.5px;padding:6px 0}
+
+/* ---- Meldungen ---- */
+.msg{border-radius:9px;padding:11px 12px;font-size:13.5px;margin-bottom:11px;display:none}
+.msg.on{display:block}
+.msg.good{background:rgba(95,214,138,.12);border:1px solid rgba(95,214,138,.4);color:#B6EFCC}
+.msg.err{background:rgba(242,105,92,.1);border:1px solid rgba(242,105,92,.4);color:#FFC0B9}
+.msg code{font-family:var(--mono);font-size:12px}
+
+.pick{width:100%;text-align:left;background:var(--surface-2);border:1px solid var(--line);
+  color:var(--ink);border-radius:9px;padding:11px;margin-bottom:7px;cursor:pointer;font-family:var(--sans)}
+.pick b{display:block;font-size:14.5px}
+.pick span{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+
+/* ---- Personen & Modus ---- */
+.seg{display:flex;gap:0;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-bottom:12px}
+.seg button{
+  flex:1;appearance:none;border:none;background:transparent;color:var(--muted);
+  font-family:var(--sans);font-size:14px;font-weight:600;padding:11px 6px;cursor:pointer;
+}
+.seg button[aria-pressed="true"]{background:var(--surface-2);color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{
+  appearance:none;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);
+  border-radius:999px;padding:9px 14px;font-size:14px;font-family:var(--sans);cursor:pointer;
+}
+.chip[aria-pressed="true"]{background:var(--amber);color:#141008;border-color:var(--amber);font-weight:650}
+.chip .x{color:var(--muted);margin-left:7px;font-family:var(--mono)}
+.chip[aria-pressed="true"] .x{color:#5C4A18}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand">
+    <h1>Laborbuchung</h1>
+    <div class="conn"><span class="dot" id="dot"></span><span id="connTxt">nicht verbunden</span></div>
+  </div>
+  <nav role="tablist">
+    <button role="tab" id="tab-lend" aria-selected="false" data-p="lend">Ausleihen</button>
+    <button role="tab" id="tab-new" aria-selected="false" data-p="new">Neu anlegen</button>
+    <button role="tab" id="tab-setup" aria-selected="true" data-p="setup">Zugang</button>
+  </nav>
+</header>
+
+<!-- ============ ZUGANG ============ -->
+<section class="panel on" id="p-setup">
+  <div class="card">
+    <p class="eyebrow">Schritt 1 — Verbindung prüfen</p>
+    <div class="field">
+      <label for="url">Adresse deiner ChemInventory-Instanz</label>
+      <input id="url" class="code" value="https://app.cheminventory.net" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </div>
+    <div class="field">
+      <label for="tok">API-Token</label>
+      <input id="tok" class="code" type="password" placeholder="xxxxxxxx-xxxx-…" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </div>
+    <button class="act" id="btnTest">Verbindung testen</button>
+    <div class="msg" id="setupMsg"></div>
+    <p class="hint">Der Token bleibt im Speicher dieses Browsers und wird an niemanden außer deine ChemInventory-Instanz gesendet. Nimm einen Token auf ein Konto mit normalen Nutzerrechten.</p>
+  </div>
+
+  <div class="card">
+    <p class="eyebrow">Wenn der Test fehlschlägt</p>
+    <p class="hint" style="margin-top:0">Ein Fehler wie <code>Failed to fetch</code> bedeutet fast immer, dass ChemInventory Anfragen direkt aus dem Browser blockt (CORS). Dann hilft nur ein kleiner Vermittler-Dienst auf einem Rechner im Institut — oder du bleibst beim Scan-to-Move-Tool auf der ChemInventory-Seite. Ein Fehler mit Text aus ChemInventory heißt dagegen: Verbindung steht, nur der Token stimmt nicht.</p>
+  </div>
+
+  <div class="card" id="whoami" style="display:none">
+    <p class="eyebrow">Angemeldet</p>
+    <div id="whoamiBody"></div>
+    <button class="ghost" id="btnForget" style="width:100%;margin-top:10px">Token von diesem Gerät löschen</button>
+  </div>
+</section>
+
+<!-- ============ AUSLEIHEN ============ -->
+<section class="panel" id="p-lend">
+  <div class="seg" role="group">
+    <button id="modeOut" aria-pressed="true">Ausleihen</button>
+    <button id="modeIn" aria-pressed="false">Zurückstellen</button>
+  </div>
+
+  <div class="target">
+    <div>
+      <div class="k">Ziel</div>
+      <div class="v empty" id="tgtName">noch nicht gesetzt</div>
+      <div class="k" id="whoLine" style="margin-top:6px;color:var(--muted)">niemand gewählt</div>
+    </div>
+    <div class="count"><span id="tgtCount">0</span><small>gebucht</small></div>
+  </div>
+
+  <div id="lendSlot"></div>
+
+  <div class="card" id="whoCard">
+    <p class="eyebrow">An wen</p>
+    <div class="chips" id="people"></div>
+    <div class="row" style="margin-top:9px">
+      <input id="newPerson" placeholder="Name hinzufügen" autocomplete="off">
+      <button class="ghost" id="btnPerson" style="flex:none">Hinzufügen</button>
+    </div>
+    <p class="hint" id="cfHint"></p>
+  </div>
+
+  <div class="card">
+    <div class="field" style="margin-bottom:0">
+      <label for="locSel">Ziel wählen — oder den Barcode eines Standorts scannen</label>
+      <select id="locSel"><option value="">…</option></select>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="eyebrow">Protokoll</p>
+    <ul class="log" id="lendLog"><li class="empty-state">Ziel setzen, dann Flaschen scannen.</li></ul>
+  </div>
+</section>
+
+<!-- ============ NEU ANLEGEN ============ -->
+<section class="panel" id="p-new">
+  <div id="newSlot"></div>
+
+  <div class="card">
+    <p class="eyebrow">Schritt 1 — Substanz</p>
+    <div class="field">
+      <label for="cas">CAS-Nummer</label>
+      <input id="cas" class="code" placeholder="7087-68-5" inputmode="numeric" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="sname">oder Name</label>
+      <input id="sname" placeholder="N,N-Diisopropylethylamin" autocomplete="off">
+    </div>
+    <button class="ghost" id="btnSub" style="width:100%">Substanz suchen</button>
+    <div class="msg" id="subMsg"></div>
+    <div id="subHits" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card" id="newForm" style="display:none">
+    <p class="eyebrow">Schritt 2 — Gebinde</p>
+    <p class="hint" id="prefillNote" style="margin:-4px 0 10px"></p>
+    <div class="field">
+      <label for="cname">Bezeichnung auf dem Etikett</label>
+      <input id="cname" autocomplete="off">
+    </div>
+    <div class="chips" id="sizeChips" style="margin-bottom:9px"></div>
+    <div class="row field">
+      <div>
+        <label for="csize">Menge</label>
+        <input id="csize" class="code" inputmode="decimal" placeholder="250" autocomplete="off">
+      </div>
+      <div>
+        <label for="cunit">Einheit</label>
+        <select id="cunit"></select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="csupp">Lieferant</label>
+      <input id="csupp" list="suppList" autocomplete="off"><datalist id="suppList"></datalist>
+      <div class="chips" id="suppChips" style="margin-top:8px"></div>
+    </div>
+    <div class="field">
+      <label for="cloc">Standort</label>
+      <select id="cloc"></select>
+    </div>
+    <div class="field">
+      <label for="cbc">Container-Barcode <span id="bcHint" style="color:var(--amber)"></span></label>
+      <input id="cbc" class="code" autocomplete="off" autocapitalize="characters">
+    </div>
+    <div class="field">
+      <label for="ccom">Kommentar</label>
+      <input id="ccom" autocomplete="off">
+    </div>
+    <button class="act" id="btnAdd">Container anlegen</button>
+    <div class="msg" id="addMsg"></div>
+    <p class="hint">Menge, Einheit, Lieferant und Standort bleiben für das nächste Gebinde stehen.</p>
+  </div>
+
+  <div class="card">
+    <p class="eyebrow">Heute angelegt</p>
+    <ul class="log" id="newLog"><li class="empty-state">Noch nichts.</li></ul>
+  </div>
+</section>
+
+</div>
+
+<script>
+"use strict";
+
+/* ---------- Speicher ---------- */
+const store = {
+  get(k,d){ try{ const v=localStorage.getItem(k); return v===null?d:JSON.parse(v);}catch(e){return d;} },
+  set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+
+const S = {
+  url: store.get("ci.url","https://app.cheminventory.net"),
+  token: store.get("ci.token",""),
+  inv: null, user:null,
+  locs: [], units: [], supps: [],
+  target: null, count: 0,
+  substance: null,
+  mode: "out",
+  person: store.get("ci.person",""),
+  people: store.get("ci.people",[]),
+  cfWho: null, cfWhen: null,
+  recent: store.get("ci.recent", {sizes:[], supps:[], loc:""})
+};
+
+const $ = id => document.getElementById(id);
+
+/* ---------- API ---------- */
+async function api(path, body){
+  const root = S.url.replace(/\/+$/,"");
+  const res = await fetch(root + "/api" + path, {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify(Object.assign({authtoken:S.token}, body||{}))
+  });
+  let j;
+  try { j = await res.json(); }
+  catch(e){ throw new Error("Antwort war kein JSON (HTTP "+res.status+")"); }
+  if(j.status !== "success"){
+    throw new Error(typeof j.data === "string" ? j.data : "ChemInventory hat die Anfrage abgelehnt");
+  }
+  return j.data;
+}
+
+/* ---------- Rückmeldung ---------- */
+function beep(good){
+  try{
+    const C = window.AudioContext || window.webkitAudioContext;
+    const ctx = new C(); const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.frequency.value = good ? 1180 : 260; o.type="square";
+    g.gain.value = .05; o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime + (good?.07:.2));
+    setTimeout(()=>ctx.close(), 400);
+  }catch(e){}
+  try{ navigator.vibrate && navigator.vibrate(good?35:[60,50,60]); }catch(e){}
+}
+function msg(el, text, kind){
+  el.textContent = text;
+  el.className = "msg on " + (kind==="err"?"err":"good");
+}
+function clearMsg(el){ el.className = "msg"; el.textContent=""; }
+
+/* ---------- Standort-Pfade ---------- */
+function buildLocations(inventory){
+  const out=[]; const raw = inventory.locations || {};
+  Object.keys(raw).forEach(invId=>{
+    const list = (raw[invId] && raw[invId].locations) || [];
+    const byId = {}; list.forEach(l=> byId[l.id] = l);
+    list.forEach(l=>{
+      const parts=[]; let cur=l, guard=0;
+      while(cur && guard++ < 30){ parts.unshift(cur.location || cur.name || "?"); cur = cur.parent ? byId[cur.parent] : null; }
+      out.push({id:l.id, barcode:l.barcode||null, path:parts.join(" › ")});
+    });
+  });
+  out.sort((a,b)=> a.path.localeCompare(b.path,"de"));
+  return out;
+}
+function fillLocSelects(){
+  ["locSel","cloc"].forEach(id=>{
+    const sel=$(id); const keep=sel.value;
+    sel.innerHTML = '<option value="">Standort wählen…</option>';
+    S.locs.forEach(l=>{
+      const o=document.createElement("option"); o.value=l.id; o.textContent=l.path; sel.appendChild(o);
+    });
+    if(keep) sel.value = keep;
+  });
+}
+
+/* ---------- Verbindung ---------- */
+async function connect(){
+  const m = $("setupMsg");
+  S.url = $("url").value.trim(); S.token = $("tok").value.trim();
+  if(!S.url || !S.token){ msg(m,"Adresse und Token ausfüllen.","err"); return; }
+  msg(m,"Prüfe…","good");
+  try{
+    const d = await api("/general/getdetails", {});
+    S.user = d.user; S.inv = d.inventory;
+    S.locs = buildLocations(d.inventory);
+    S.units = d.inventory.units || [];
+    S.supps = d.inventory.suppliers || [];
+    store.set("ci.url", S.url); store.set("ci.token", S.token);
+
+    $("dot").classList.add("live");
+    $("connTxt").textContent = d.inventory.name || "verbunden";
+    msg(m, "Verbindung steht.", "good");
+    $("whoami").style.display="block";
+    $("whoamiBody").innerHTML =
+      '<div style="font-size:15px;font-weight:600">'+esc((d.user.firstname||"")+" "+(d.user.lastname||""))+'</div>'+
+      '<div class="bc" style="font-family:var(--mono);font-size:12px;color:var(--muted)">'+
+      esc(d.inventory.name||"")+" · "+S.locs.length+" Standorte · "+S.units.length+" Einheiten</div>";
+
+    fillLocSelects();
+    detectFields();
+    const us=$("cunit"); us.innerHTML="";
+    S.units.forEach(u=>{ const o=document.createElement("option"); o.value=u.id; o.textContent=u.unit; us.appendChild(o); });
+    const dl=$("suppList"); dl.innerHTML="";
+    S.supps.forEach(s=>{ const o=document.createElement("option"); o.value=s.name; dl.appendChild(o); });
+    beep(true);
+  }catch(err){
+    $("dot").classList.remove("live"); $("connTxt").textContent="nicht verbunden";
+    const t = String(err.message||err);
+    msg(m, /Failed to fetch|NetworkError|Load failed/i.test(t)
+      ? "Keine Antwort erhalten. Das ist mit hoher Wahrscheinlichkeit CORS — siehe Kasten unten."
+      : "ChemInventory meldet: " + t, "err");
+    beep(false);
+  }
+}
+
+/* ---------- Scanner ---------- */
+let stream=null, running=false, detector=null, lastCode="", lastAt=0, sink=null;
+
+const scanner = document.createElement("div");
+scanner.className="scanner";
+scanner.innerHTML =
+  '<div class="viewport" id="vp"><video id="vid" playsinline muted></video><div class="reticle"></div></div>'+
+  '<div class="scanbar"><span class="lbl" id="scanLbl">Kamera aus</span>'+
+  '<button id="btnCam">Kamera starten</button></div>'+
+  '<div class="manual"><input id="man" class="code" placeholder="Barcode eintippen oder einscannen" autocomplete="off" autocapitalize="characters">'+
+  '<button class="ghost" id="btnMan" style="flex:none">OK</button></div>';
+
+function mountScanner(slotId){
+  const slot = $(slotId);
+  if(scanner.parentElement !== slot) slot.appendChild(scanner);
+}
+
+async function camStart(){
+  if(running) return camStop();
+  const lbl = $("scanLbl");
+  if(!window.isSecureContext){
+    lbl.textContent = "Kein HTTPS — Kamera bleibt gesperrt";
+    return;
+  }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    lbl.textContent = "Browser gibt keinen Kamerazugriff";
+    return;
+  }
+  if(!("BarcodeDetector" in window)){
+    lbl.textContent = "Kamera-Erkennung fehlt — bitte tippen";
+    return;
+  }
+  try{
+    detector = detector || new window.BarcodeDetector({formats:["code_128","code_39","ean_13","ean_8","qr_code","codabar","itf","upc_a","upc_e"]});
+    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}});
+    const v = $("vid"); v.srcObject = stream; await v.play();
+    $("vp").classList.add("on"); $("btnCam").textContent="Kamera aus";
+    lbl.textContent="Code ins Rechteck halten";
+    running = true; loop();
+  }catch(e){
+    const n = e && e.name ? e.name : "";
+    lbl.textContent =
+      n==="NotAllowedError"  ? "Zugriff abgelehnt — in den Seiteneinstellungen erlauben" :
+      n==="NotFoundError"    ? "Keine Kamera gefunden" :
+      n==="NotReadableError" ? "Kamera von einer anderen App belegt" :
+      n==="SecurityError"    ? "Vom Browser blockiert (Sicherheitskontext)" :
+      "Kamera-Fehler: " + (n || e.message || "unbekannt");
+  }
+}
+function camStop(){
+  running=false;
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+  $("vp").classList.remove("on"); $("btnCam").textContent="Kamera starten"; $("scanLbl").textContent="Kamera aus";
+}
+async function loop(){
+  if(!running) return;
+  try{
+    const codes = await detector.detect($("vid"));
+    if(codes && codes.length){
+      const val = (codes[0].rawValue||"").trim();
+      const now = Date.now();
+      if(val && !(val===lastCode && now-lastAt < 2500)){
+        lastCode=val; lastAt=now;
+        handleCode(val);
+      }
+    }
+  }catch(e){}
+  setTimeout(()=>{ if(running) requestAnimationFrame(loop); }, 220);
+}
+function handleCode(code){ if(sink) sink(code); }
+
+/* ---------- Ausleihen ---------- */
+function setTarget(id){
+  const l = S.locs.find(x=> String(x.id)===String(id));
+  S.target = l || null;
+  $("tgtName").textContent = l ? l.path : "noch nicht gesetzt";
+  $("tgtName").classList.toggle("empty", !l);
+  $("locSel").value = l ? l.id : "";
+}
+function detectFields(){
+  const cf = (S.inv && S.inv.customfields && S.inv.customfields.container) || [];
+  const norm = s => String(s||"").toLowerCase();
+  S.cfWho  = (cf.find(f => /ausgeliehen an|entliehen an|ausleihe|borrow|inhaber|nutzer/.test(norm(f.name))) || {}).id || null;
+  S.cfWhen = (cf.find(f => f.type==="date" && /ausgeliehen|entliehen|ausleih|borrow/.test(norm(f.name)))  || {}).id || null;
+  const h = $("cfHint");
+  if(S.cfWho && S.cfWhen) h.textContent = "Name und Datum werden in die Containerfelder geschrieben.";
+  else if(S.cfWho)        h.textContent = "Name wird geschrieben. Für das Datum fehlt ein Datumsfeld in ChemInventory.";
+  else                    h.textContent = "In ChemInventory sind noch keine Felder für die Ausleihe angelegt — der Name steht dann nur hier im Protokoll und im Zielstandort.";
+}
+
+function renderPeople(){
+  const box = $("people"); box.innerHTML="";
+  if(!S.people.length){
+    const p=document.createElement("span"); p.className="empty-state"; p.textContent="Noch niemand angelegt.";
+    box.appendChild(p);
+  }
+  S.people.forEach(name=>{
+    const b=document.createElement("button"); b.className="chip";
+    b.setAttribute("aria-pressed", String(name===S.person));
+    b.innerHTML = esc(name) + '<span class="x" title="entfernen">×</span>';
+    b.onclick = ev => {
+      if(ev.target.classList.contains("x")){
+        S.people = S.people.filter(n=>n!==name);
+        if(S.person===name){ S.person=""; store.set("ci.person",""); }
+        store.set("ci.people", S.people); renderPeople(); return;
+      }
+      S.person = (S.person===name) ? "" : name;
+      store.set("ci.person", S.person); renderPeople();
+    };
+    box.appendChild(b);
+  });
+  $("whoLine").textContent = S.mode==="in"
+    ? "Rückgabe — Ausleihe wird geleert"
+    : (S.person ? "an " + S.person + " · " + new Date().toLocaleDateString("de-DE") : "niemand gewählt");
+}
+
+function setMode(m){
+  S.mode = m;
+  $("modeOut").setAttribute("aria-pressed", String(m==="out"));
+  $("modeIn").setAttribute("aria-pressed", String(m==="in"));
+  $("whoCard").style.display = m==="in" ? "none" : "block";
+  renderPeople();
+}
+
+async function writeField(containerid, fieldId, value){
+  if(!fieldId) return;
+  await api("/container/information/save", {containerid, field:"cf-"+fieldId, newvalue:value});
+}
+
+function unitLabel(id){ const u=S.units.find(x=>String(x.id)===String(id)); return u?u.unit:""; }
+
+function renderQuick(){
+  const sc=$("sizeChips"); sc.innerHTML="";
+  (S.recent.sizes||[]).slice(0,5).forEach(key=>{
+    const [sz,u]=key.split("|");
+    const b=document.createElement("button"); b.className="chip"; b.type="button";
+    b.textContent = sz+" "+unitLabel(u);
+    b.onclick=()=>{ $("csize").value=sz; $("cunit").value=u; };
+    sc.appendChild(b);
+  });
+  const pc=$("suppChips"); pc.innerHTML="";
+  (S.recent.supps||[]).slice(0,4).forEach(name=>{
+    const b=document.createElement("button"); b.className="chip"; b.type="button";
+    b.textContent=name;
+    b.onclick=()=>{ $("csupp").value=name; };
+    pc.appendChild(b);
+  });
+}
+
+function remember(sz,unit,supp,loc){
+  const r=S.recent;
+  if(sz && unit){
+    const k=sz+"|"+unit;
+    r.sizes=[k].concat((r.sizes||[]).filter(x=>x!==k)).slice(0,8);
+  }
+  if(supp) r.supps=[supp].concat((r.supps||[]).filter(x=>x!==supp)).slice(0,8);
+  if(loc) r.loc=loc;
+  store.set("ci.recent", r); renderQuick();
+}
+
+async function prefillFromExisting(sid){
+  const note=$("prefillNote"); note.textContent="";
+  try{
+    const d = await api("/search/execute", {inventory:S.user.inventory, type:"substanceid", contents:String(sid)});
+    const cs = d.containers||[];
+    if(!cs.length){ note.textContent="Erstes Gebinde dieser Substanz."; return; }
+    const top = arr => {
+      const m={}; arr.forEach(v=>{ if(v!==""&&v!=null) m[v]=(m[v]||0)+1; });
+      const k=Object.keys(m); if(!k.length) return "";
+      return k.sort((a,b)=>m[b]-m[a])[0];
+    };
+    const sizeKey = top(cs.map(c=> (c.size!=null && c.unitid) ? c.size+"|"+c.unitid : ""));
+    const supp    = top(cs.map(c=> c.supplier||""));
+    const loc     = top(cs.map(c=> c.location||""));
+    if(sizeKey){ const p=sizeKey.split("|"); $("csize").value=p[0]; $("cunit").value=p[1]; }
+    if(supp) $("csupp").value = supp;
+    if(loc && !$("cloc").value) $("cloc").value = loc;
+    note.textContent = "Vorbelegt aus "+cs.length+" vorhandenen Gebinde"+(cs.length>1?"n":"")+" dieser Substanz.";
+  }catch(e){ note.textContent=""; }
+}
+
+function logAdd(listId, ok, title, sub){
+  const ul = $(listId);
+  const es = ul.querySelector(".empty-state"); if(es) es.remove();
+  const li = document.createElement("li");
+  const t = new Date().toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"});
+  li.innerHTML = '<span class="mark '+(ok?"ok":"bad")+'">'+(ok?"✓":"✕")+'</span>'+
+                 '<span class="body"><span>'+esc(title)+'</span><br><span class="bc">'+esc(sub)+'</span></span>'+
+                 '<span class="t">'+t+'</span>';
+  ul.insertBefore(li, ul.firstChild);
+}
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+async function lendScan(code){
+  if(!S.token){ logAdd("lendLog", false, "Nicht verbunden", "Erst unter Zugang anmelden"); beep(false); return; }
+  const loc = S.locs.find(l=> l.barcode && l.barcode.toLowerCase()===code.toLowerCase());
+  if(loc){ setTarget(loc.id); beep(true); logAdd("lendLog", true, "Ziel gesetzt", loc.path); return; }
+  if(!S.target){ logAdd("lendLog", false, "Kein Ziel gesetzt", code); beep(false); return; }
+  try{
+    const d = await api("/search/execute", {inventory:S.user.inventory, type:"barcode", contents:code});
+    const c = (d.containers||[])[0];
+    if(!c){ logAdd("lendLog", false, "Kein Container zu diesem Code", code); beep(false); return; }
+    await api("/container/move", {containerid:[c.id], destinationid:S.target.id});
+
+    let note = code + " → " + S.target.path;
+    if(S.mode === "out"){
+      if(!S.person && (S.cfWho || S.people.length)){
+        logAdd("lendLog", false, "Keine Person gewählt — nur verschoben", note); beep(false);
+        S.count++; $("tgtCount").textContent = S.count; return;
+      }
+      const heute = new Date().toISOString().slice(0,10);
+      try{
+        await writeField(c.id, S.cfWho, S.person);
+        await writeField(c.id, S.cfWhen, heute);
+      }catch(e){ note += " · Feld nicht geschrieben: " + (e.message||e); }
+      if(S.person) note = code + " → " + S.person + " · " + S.target.path;
+    } else {
+      try{
+        await writeField(c.id, S.cfWho, "");
+        await writeField(c.id, S.cfWhen, "");
+      }catch(e){ note += " · Feld nicht geleert: " + (e.message||e); }
+      note = code + " → zurück nach " + S.target.path;
+    }
+
+    S.count++; $("tgtCount").textContent = S.count;
+    logAdd("lendLog", true, c.name, note);
+    beep(true);
+  }catch(err){
+    logAdd("lendLog", false, String(err.message||err), code); beep(false);
+  }
+}
+
+/* ---------- Neu anlegen ---------- */
+async function findSubstance(){
+  const m=$("subMsg"); clearMsg(m); $("subHits").innerHTML="";
+  const cas = $("cas").value.trim(), nm = $("sname").value.trim();
+  if(!cas && !nm){ msg(m,"CAS oder Name angeben.","err"); return; }
+  try{
+    const hits = await api("/container/getsubstance", {name: nm || "N/A", cas: cas || "N/A"});
+    if(!hits || !hits.length){ msg(m,"Nichts gefunden.","err"); return; }
+    hits.slice(0,6).forEach(h=>{
+      const b=document.createElement("button"); b.className="pick";
+      b.innerHTML = "<b>"+esc(h.name)+"</b><span>CAS "+esc(h.cas||"—")+(h.molecularweight?" · M "+esc(h.molecularweight):"")+"</span>";
+      b.onclick = ()=> pickSubstance(h);
+      $("subHits").appendChild(b);
+    });
+    if(hits.length===1) pickSubstance(hits[0]);
+  }catch(err){ msg(m, String(err.message||err), "err"); }
+}
+function pickSubstance(h){
+  S.substance = h;
+  $("subHits").innerHTML="";
+  msg($("subMsg"), "Gewählt: "+h.name, "good");
+  $("cname").value = h.name || "";
+  $("newForm").style.display="block";
+  $("bcHint").textContent = "— Scan füllt dieses Feld";
+  if(!$("cloc").value && S.recent.loc) $("cloc").value = S.recent.loc;
+  renderQuick();
+  prefillFromExisting(h.id);
+  if(h.needsretrieval===1 && h.cas && h.cas!=="N/A"){
+    api("/general/retrievesubstanceinfo", {substance:h.id}).catch(()=>{});
+  }
+  $("cbc").scrollIntoView({behavior:"smooth", block:"center"});
+}
+async function addContainer(){
+  const m=$("addMsg"); clearMsg(m);
+  if(!S.substance){ msg(m,"Erst eine Substanz wählen.","err"); return; }
+  const locId = $("cloc").value;
+  if(!locId){ msg(m,"Standort wählen.","err"); return; }
+  const rec = {
+    name: $("cname").value.trim() || S.substance.name,
+    locationid: Number(locId),
+    substanceid: S.substance.id,
+    supplier: $("csupp").value.trim(),
+    barcode: $("cbc").value.trim(),
+    containersize: $("csize").value.trim(),
+    units: Number($("cunit").value)||undefined,
+    comments: $("ccom").value.trim(),
+    dateacquired: new Date().toISOString().slice(0,10)
+  };
+  $("btnAdd").disabled = true;
+  try{
+    await api("/container/add", {data:[rec]});
+    remember(rec.containersize, $("cunit").value, rec.supplier, locId);
+    logAdd("newLog", true, rec.name, (rec.barcode||"ohne Barcode")+" · "+(rec.containersize||"?")+" "+unitLabel($("cunit").value)+" · "+(S.locs.find(l=>String(l.id)===String(locId))||{}).path);
+    msg(m,"Angelegt. Nächstes Gebinde: Barcode scannen.","good");
+    $("cbc").value=""; $("ccom").value="";
+    beep(true);
+  }catch(err){ msg(m, String(err.message||err), "err"); beep(false); }
+  finally{ $("btnAdd").disabled=false; }
+}
+
+/* ---------- Tabs ---------- */
+function show(p){
+  ["setup","lend","new"].forEach(k=>{
+    $("p-"+k).classList.toggle("on", k===p);
+    $("tab-"+k).setAttribute("aria-selected", String(k===p));
+  });
+  if(p==="lend"){ mountScanner("lendSlot"); sink = lendScan; $("scanLbl").textContent = running?"Code ins Rechteck halten":"Kamera aus"; }
+  else if(p==="new"){ mountScanner("newSlot"); sink = code => {
+      if(S.substance){ $("cbc").value = code; beep(true); }
+      else { $("cas").value = code; beep(true); }
+    };
+  }
+  else { camStop(); sink=null; }
+}
+document.querySelectorAll("nav button").forEach(b=> b.onclick = ()=> show(b.dataset.p));
+
+/* ---------- Start ---------- */
+$("url").value = S.url; $("tok").value = S.token;
+$("btnTest").onclick = connect;
+$("btnForget").onclick = ()=>{ store.del("ci.token"); S.token=""; $("tok").value=""; location.reload(); };
+$("locSel").onchange = e => setTarget(e.target.value);
+$("btnSub").onclick = findSubstance;
+$("modeOut").onclick = ()=> setMode("out");
+$("modeIn").onclick  = ()=> setMode("in");
+$("btnPerson").onclick = ()=>{
+  const i=$("newPerson"), v=i.value.trim();
+  if(!v) return;
+  if(!S.people.includes(v)) S.people.push(v);
+  S.people.sort((a,b)=>a.localeCompare(b,"de"));
+  S.person = v; store.set("ci.people", S.people); store.set("ci.person", v);
+  i.value=""; renderPeople();
+};
+$("newPerson").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); $("btnPerson").click(); }});
+setMode("out");
+$("btnAdd").onclick = addContainer;
+scanner.querySelector("#btnCam").onclick = camStart;
+scanner.querySelector("#btnMan").onclick = ()=>{ const i=$("man"); if(i.value.trim()){ handleCode(i.value.trim()); i.value=""; } };
+scanner.querySelector("#man").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); scanner.querySelector("#btnMan").click(); }});
+
+if(S.token) connect().then(()=> show("lend")).catch(()=>{});
+</script>
+</body>
+</html>
