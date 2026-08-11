@@ -727,6 +727,18 @@ function appendNote(text){
   note.textContent = note.textContent ? note.textContent + " " + text : text;
 }
 
+async function fetchFormulaFromWikidata(cas){
+  const query = 'SELECT ?formula WHERE { ?compound wdt:P231 "'+cas+'". ?compound wdt:P274 ?formula. } LIMIT 1';
+  const url = "https://query.wikidata.org/sparql?format=json&query="+encodeURIComponent(query);
+  const res = await fetch(url, { headers: { "Accept": "application/sparql-results+json" } });
+  if(!res.ok) throw new Error("HTTP "+res.status+" from Wikidata");
+  const data = await res.json();
+  const bindings = data && data.results && data.results.bindings;
+  const formula = bindings && bindings[0] && bindings[0].formula && bindings[0].formula.value;
+  if(!formula) throw new Error("no formula in Wikidata response");
+  return formula.trim();
+}
+
 async function fetchFormulaFromCasCommonChemistry(cas){
   const res = await fetch("https://commonchemistry.cas.org/api/detail?cas_rn="+encodeURIComponent(cas));
   if(!res.ok) throw new Error("HTTP "+res.status+" from CAS Common Chemistry");
@@ -768,17 +780,19 @@ async function suggestLocationByFormula(h, retrieved){
   let source = "ChemInventory";
   if(!formula){
     if(!h.cas || h.cas === "N/A") return;
-    try{
-      formula = await fetchFormulaFromCasCommonChemistry(h.cas);
-      source = "CAS Common Chemistry";
-    }catch(e1){
-      try{
-        formula = await fetchPubchemFormula(h.cas);
-        source = "PubChem";
-      }catch(e2){
-        appendNote("Carbon-count lookup failed: "+(e2.message||e2)+".");
-        return;
-      }
+    const sources = [
+      ["Wikidata", fetchFormulaFromWikidata],
+      ["CAS Common Chemistry", fetchFormulaFromCasCommonChemistry],
+      ["PubChem", fetchPubchemFormula]
+    ];
+    let lastErr = null;
+    for(const [name, fn] of sources){
+      try{ formula = await fn(h.cas); source = name; break; }
+      catch(e){ lastErr = e; }
+    }
+    if(!formula){
+      appendNote("Carbon-count lookup failed: "+(lastErr ? (lastErr.message||lastErr) : "unknown error")+".");
+      return;
     }
   }
   const m = /^C(?![a-z])(\d*)/.exec(formula);
