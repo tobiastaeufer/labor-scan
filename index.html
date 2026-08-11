@@ -264,7 +264,7 @@ video{width:100%;height:100%;object-fit:cover;display:block}
     <p class="eyebrow">Schritt 1 — Substanz</p>
     <div class="field">
       <label for="cas">CAS-Nummer</label>
-      <input id="cas" class="code" placeholder="7087-68-5" inputmode="numeric" autocomplete="off">
+      <input id="cas" class="code" placeholder="7087-68-5" inputmode="text" pattern="[0-9\-]*" autocomplete="off">
     </div>
     <div class="field">
       <label for="sname">oder Name</label>
@@ -415,6 +415,7 @@ async function connect(){
   const m = $("setupMsg");
   S.url = $("url").value.trim(); S.token = $("tok").value.trim();
   if(!S.url || !S.token){ msg(m,"Adresse und Token ausfüllen.","err"); return; }
+  store.set("ci.url", S.url); store.set("ci.token", S.token);
   msg(m,"Prüfe…","good");
   try{
     const d = await api("/general/getdetails", {});
@@ -422,7 +423,6 @@ async function connect(){
     S.locs = buildLocations(d.inventory);
     S.units = d.inventory.units || [];
     S.supps = d.inventory.suppliers || [];
-    store.set("ci.url", S.url); store.set("ci.token", S.token);
 
     $("dot").classList.add("live");
     $("connTxt").textContent = d.inventory.name || "verbunden";
@@ -519,7 +519,11 @@ async function loop(){
   }catch(e){}
   setTimeout(()=>{ if(running) requestAnimationFrame(loop); }, 220);
 }
-function handleCode(code){ if(sink) sink(code); }
+function handleCode(code){
+  const m = scanner.querySelector("#man");
+  if(m) m.value = code;
+  if(sink) sink(code);
+}
 
 /* ---------- Ausleihen ---------- */
 function setTarget(id){
@@ -750,8 +754,10 @@ function show(p){
   });
   if(p==="lend"){ mountScanner("lendSlot"); sink = lendScan; $("scanLbl").textContent = running?"Code ins Rechteck halten":"Kamera aus"; }
   else if(p==="new"){ mountScanner("newSlot"); sink = code => {
-      if(S.substance){ $("cbc").value = code; beep(true); }
-      else { $("cas").value = code; beep(true); }
+      const isCas = /^\d{2,7}-\d{2}-\d$/.test(code.trim());
+      if(isCas){ $("cas").value = code; beep(true); }
+      else if(S.substance){ $("cbc").value = code; beep(true); }
+      else { msg($("subMsg"), "Barcode erkannt, aber noch keine Substanz gewählt — erst CAS-Nummer oder Name suchen.", "err"); beep(false); }
     };
   }
   else { camStop(); sink=null; }
@@ -760,6 +766,8 @@ document.querySelectorAll("nav button").forEach(b=> b.onclick = ()=> show(b.data
 
 /* ---------- Start ---------- */
 $("url").value = S.url; $("tok").value = S.token;
+$("url").addEventListener("input", ()=>{ S.url = $("url").value.trim(); store.set("ci.url", S.url); });
+$("tok").addEventListener("input", ()=>{ S.token = $("tok").value.trim(); store.set("ci.token", S.token); });
 $("btnTest").onclick = connect;
 $("btnForget").onclick = ()=>{ store.del("ci.token"); S.token=""; $("tok").value=""; location.reload(); };
 $("locSel").onchange = e => setTarget(e.target.value);
