@@ -730,19 +730,24 @@ function appendNote(text){
 async function fetchPubchemFormula(cas){
   const target = "https://pubchem.ncbi.gov/rest/pug/compound/xref/RN/"+encodeURIComponent(cas)+"/property/MolecularFormula/JSON";
   // Direct PubChem access fails with a CORS error from the browser, so this
-  // routes through a public CORS proxy as a best-effort fallback. If that
-  // proxy ever goes away, swap the URL below for another one.
-  const attempts = [ target, "https://corsproxy.io/?url="+encodeURIComponent(target) ];
+  // tries a couple of public CORS proxies as a best-effort fallback chain.
+  // Any one of these can go down independently, hence trying more than one.
+  const attempts = [
+    target,
+    "https://corsproxy.io/?url="+encodeURIComponent(target),
+    "https://api.allorigins.win/raw?url="+encodeURIComponent(target),
+    "https://thingproxy.freeboard.io/fetch/"+target
+  ];
   let lastErr = new Error("no formula found");
   for(const url of attempts){
     try{
       const res = await fetch(url);
-      if(!res.ok){ lastErr = new Error("HTTP "+res.status); continue; }
+      if(!res.ok){ lastErr = new Error("HTTP "+res.status+" from "+new URL(url).hostname); continue; }
       const data = await res.json();
       const props = data && data.PropertyTable && data.PropertyTable.Properties;
       const formula = props && props[0] && props[0].MolecularFormula;
       if(formula) return formula;
-      lastErr = new Error("no formula in response");
+      lastErr = new Error("no formula in response from "+new URL(url).hostname);
     }catch(e){ lastErr = e; }
   }
   throw lastErr;
