@@ -727,6 +727,15 @@ function appendNote(text){
   note.textContent = note.textContent ? note.textContent + " " + text : text;
 }
 
+async function fetchFormulaFromCasCommonChemistry(cas){
+  const res = await fetch("https://commonchemistry.cas.org/api/detail?cas_rn="+encodeURIComponent(cas));
+  if(!res.ok) throw new Error("HTTP "+res.status+" from CAS Common Chemistry");
+  const data = await res.json();
+  const raw = data && data.molecularFormula;
+  if(!raw) throw new Error("no formula in CAS Common Chemistry response");
+  return raw.replace(/<[^>]+>/g, "").trim(); // strips <sub>/<i> markup around the formula
+}
+
 async function fetchPubchemFormula(cas){
   const target = "https://pubchem.ncbi.gov/rest/pug/compound/xref/RN/"+encodeURIComponent(cas)+"/property/MolecularFormula/JSON";
   // Direct PubChem access fails with a CORS error from the browser, so this
@@ -759,12 +768,17 @@ async function suggestLocationByFormula(h, retrieved){
   let source = "ChemInventory";
   if(!formula){
     if(!h.cas || h.cas === "N/A") return;
-    source = "PubChem";
     try{
-      formula = await fetchPubchemFormula(h.cas);
-    }catch(e){
-      appendNote("Carbon-count lookup failed: "+(e.message||e)+".");
-      return;
+      formula = await fetchFormulaFromCasCommonChemistry(h.cas);
+      source = "CAS Common Chemistry";
+    }catch(e1){
+      try{
+        formula = await fetchPubchemFormula(h.cas);
+        source = "PubChem";
+      }catch(e2){
+        appendNote("Carbon-count lookup failed: "+(e2.message||e2)+".");
+        return;
+      }
     }
   }
   const m = /^C(?![a-z])(\d*)/.exec(formula);
