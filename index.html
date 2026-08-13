@@ -684,6 +684,22 @@ function normalizeFormula(s){
   return String(s||"").replace(/[₀₁₂₃₄₅₆₇₈₉]/g, ch => SUBSCRIPT_DIGITS[ch]);
 }
 
+function extractCasFromObject(h){
+  if(!h || typeof h !== "object") return null;
+  for(const k of Object.keys(h)){
+    const v = h[k];
+    if(/cas/i.test(k) && typeof v === "string" && /^\d{2,7}-\d{2}-\d$/.test(v.trim())) return v.trim();
+  }
+  for(const k of Object.keys(h)){
+    const v = h[k];
+    if(v && typeof v === "object" && !Array.isArray(v)){
+      const nested = extractCasFromObject(v);
+      if(nested) return nested;
+    }
+  }
+  return null;
+}
+
 function extractFormulaFromSubstance(h){
   if(!h || typeof h !== "object") return null;
   for(const k of Object.keys(h)){
@@ -754,31 +770,42 @@ async function fetchPubchemFormula(cas){
   return formula;
 }
 
+async function fetchFormulaForCas(cas){
+  const sources = [
+    ["Wikidata", fetchFormulaFromWikidata],
+    ["CAS Common Chemistry", fetchFormulaFromCasCommonChemistry],
+    ["PubChem", fetchPubchemFormula]
+  ];
+  let lastErr = null;
+  for(const [name, fn] of sources){
+    try{ return { formula: normalizeFormula(await fn(cas)), source: name }; }
+    catch(e){ lastErr = e; }
+  }
+  throw lastErr || new Error("no formula found");
+}
+
+function carbonsFromFormula(formula){
+  const m = /^C(?![a-z])(\d*)/.exec(formula);
+  return m ? parseInt(m[1] || "1", 10) : null;
+}
+
 async function suggestLocationByFormula(h, retrieved){
   if($("cloc").value) return;
   let formula = extractFormulaFromSubstance(h) || extractFormulaFromSubstance(retrieved);
   let source = "ChemInventory";
   if(!formula){
     if(!h.cas || h.cas === "N/A") return;
-    const sources = [
-      ["Wikidata", fetchFormulaFromWikidata],
-      ["CAS Common Chemistry", fetchFormulaFromCasCommonChemistry],
-      ["PubChem", fetchPubchemFormula]
-    ];
-    let lastErr = null;
-    for(const [name, fn] of sources){
-      try{ formula = await fn(h.cas); source = name; break; }
-      catch(e){ lastErr = e; }
-    }
-    if(!formula){
-      appendNote("Carbon-count lookup failed: "+(lastErr ? (lastErr.message||lastErr) : "unknown error")+".");
+    try{
+      const result = await fetchFormulaForCas(h.cas);
+      formula = result.formula; source = result.source;
+    }catch(e){
+      appendNote("Carbon-count lookup failed: "+(e.message||e)+".");
       return;
     }
   }
   formula = normalizeFormula(formula);
-  const m = /^C(?![a-z])(\d*)/.exec(formula);
-  if(!m){ appendNote("Formula "+formula+" has no carbon — pick a location manually."); return; }
-  const carbons = parseInt(m[1] || "1", 10);
+  const carbons = carbonsFromFormula(formula);
+  if(carbons==null){ appendNote("Formula "+formula+" has no carbon — pick a location manually."); return; }
   $("clocHint").textContent = "formula: "+formula+" → c"+carbons;
   const loc = locationForCarbonCount(carbons);
   if(loc && !$("cloc").value){
@@ -841,6 +868,16 @@ function renderPending(){
       (p.parsed
         ? '<p class="hint" style="margin:6px 0 0">Previous location taken from the comment — change it in the dropdown above if needed.</p>'
         : '<p class="hint" style="margin:6px 0 0">No previous location found in the comment — please choose a location.</p>');
+    if(p.casCheck){
+      const cc = p.casCheck;
+      const matches = cc.loc && S.target && String(cc.loc.id) === String(S.target.id);
+      const mismatch = cc.loc && !matches;
+      html += '<p class="hint" style="margin:6px 0 0'+(mismatch?';color:var(--bad)':'')+'">'+
+        'CAS check (C'+cc.carbons+', '+esc(cc.formula)+'): '+
+        (cc.loc ? esc(cc.loc.path) : "no matching C-range location")+
+        (mismatch ? ' — differs from the target above, please double-check!' : (matches ? ' ✓ matches the target above.' : '')) +
+        '</p>';
+    }
   }
   body.innerHTML = html;
 
@@ -937,10 +974,23 @@ async function stageLendCode(code){
 
     S.pending = {
       code, container:c, mode:S.mode, parsed,
-      date: new Date().toISOString().slice(0,10), phone:"", lab:""
+      date: new Date().toISOString().slice(0,10), phone:"", lab:"",
+      casCheck: null
     };
     renderPending();
     beep(true);
+
+    if(S.mode === "in"){
+      const cas = extractCasFromObject(c);
+      if(cas){
+        fetchFormulaForCas(cas).then(({formula})=>{
+          const carbons = carbonsFromFormula(formula);
+          if(carbons==null || !S.pending || S.pending.code !== code) return;
+          S.pending.casCheck = { carbons, formula, loc: locationForCarbonCount(carbons) };
+          renderPending();
+        }).catch(()=>{});
+      }
+    }
   }catch(err){
     logAdd("lendLog", false, String(err.message||err), code); beep(false);
   }
