@@ -376,7 +376,8 @@ const S = {
   people: store.get("ci.people",[]),
   cfWho: null, cfWhen: null,
   recent: store.get("ci.recent", {sizes:[], supps:[], loc:""}),
-  pending: null
+  pending: null,
+  pendingBarcode: null
 };
 
 const $ = id => document.getElementById(id);
@@ -610,6 +611,15 @@ function detectFields(){
   if(S.cfWho && S.cfWhen) h.textContent = "Name and date will be written to the container fields.";
   else if(S.cfWho)        h.textContent = "Name will be written. There's no date field set up in ChemInventory for the date.";
   else                    h.textContent = "No borrowing fields are set up in ChemInventory yet — the name will only appear here in the log and at the destination location.";
+}
+
+function addPerson(name){
+  const v = String(name||"").trim();
+  if(!v) return;
+  if(!S.people.includes(v)) S.people.push(v);
+  S.people.sort((a,b)=>a.localeCompare(b,"en"));
+  S.person = v; store.set("ci.people", S.people); store.set("ci.person", v);
+  renderPeople();
 }
 
 function renderPeople(){
@@ -855,6 +865,10 @@ function renderPending(){
     html += '<div style="font-size:14px">Target: '+(S.target?esc(S.target.path):'<span style="color:var(--bad)">none selected</span>')+'</div>'+
       '<div class="field" style="margin-top:10px;margin-bottom:8px">'+
         '<label for="pendPerson">Borrower</label><select id="pendPerson"></select>'+
+        '<div class="row" style="margin-top:6px">'+
+          '<input id="pendNewPerson" placeholder="New name…" autocomplete="off">'+
+          '<button class="ghost" id="pendAddPerson" style="flex:none">Add</button>'+
+        '</div>'+
       '</div>'+
       '<div class="row field">'+
         '<div><label for="pendDate">Date</label><input type="date" id="pendDate"></div>'+
@@ -873,6 +887,11 @@ function renderPending(){
     const selP = $("pendPerson");
     selP.innerHTML = '<option value="">— none —</option>' + S.people.map(n=>'<option value="'+esc(n)+'"'+(n===S.person?' selected':'')+'>'+esc(n)+'</option>').join('');
     selP.onchange = ()=>{ S.person = selP.value; store.set("ci.person", S.person); renderPeople(); };
+
+    const newPersonEl = $("pendNewPerson");
+    const addFromPending = ()=>{ addPerson(newPersonEl.value); };
+    $("pendAddPerson").onclick = addFromPending;
+    newPersonEl.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); addFromPending(); }});
 
     const dateEl = $("pendDate");
     dateEl.value = p.date || new Date().toISOString().slice(0,10);
@@ -993,6 +1012,10 @@ function pickSubstance(h){
   $("cname").value = h.name || "";
   $("newForm").style.display="block";
   $("bcHint").textContent = "— scanning fills this field";
+  if(S.pendingBarcode){
+    $("cbc").value = S.pendingBarcode;
+    S.pendingBarcode = null;
+  }
   renderQuick();
 
   const retrieval = (h.needsretrieval===1 && h.cas && h.cas!=="N/A")
@@ -1034,6 +1057,7 @@ async function addContainer(){
 }
 function resetNewItemForm(){
   S.substance = null;
+  S.pendingBarcode = null;
   $("cas").value = ""; $("sname").value = "";
   clearMsg($("subMsg")); $("subHits").innerHTML = "";
   $("newForm").style.display = "none";
@@ -1054,12 +1078,17 @@ function show(p){
     $("tab-"+k).setAttribute("aria-selected", String(k===p));
   });
   if(p!=="lend") cancelPending();
+  if(p!=="new") S.pendingBarcode = null;
   if(p==="lend"){ mountScanner("lendSlot"); sink = stageLendCode; $("scanLbl").textContent = running?"Hold code inside the frame":"Camera off"; }
   else if(p==="new"){ mountScanner("newSlot"); sink = code => {
       const isCas = /^\d{2,7}-\d{2}-\d$/.test(code.trim());
       if(isCas){ $("cas").value = code; beep(true); }
       else if(S.substance){ $("cbc").value = code; beep(true); }
-      else { msg($("subMsg"), "Barcode recognized, but no substance selected yet — search by CAS number or name first.", "err"); beep(false); }
+      else {
+        S.pendingBarcode = code;
+        msg($("subMsg"), "Barcode saved — will fill in the container barcode once you pick a substance.", "good");
+        beep(true);
+      }
     };
   }
   else { camStop(); sink=null; }
@@ -1078,14 +1107,7 @@ $("cas").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(
 $("sname").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); findSubstance(); }});
 $("modeOut").onclick = ()=> setMode("out");
 $("modeIn").onclick  = ()=> setMode("in");
-$("btnPerson").onclick = ()=>{
-  const i=$("newPerson"), v=i.value.trim();
-  if(!v) return;
-  if(!S.people.includes(v)) S.people.push(v);
-  S.people.sort((a,b)=>a.localeCompare(b,"en"));
-  S.person = v; store.set("ci.people", S.people); store.set("ci.person", v);
-  i.value=""; renderPeople();
-};
+$("btnPerson").onclick = ()=>{ const i=$("newPerson"); addPerson(i.value); i.value=""; };
 $("newPerson").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); $("btnPerson").click(); }});
 $("btnConfirmPending").onclick = confirmPending;
 $("btnCancelPending").onclick = cancelPending;
