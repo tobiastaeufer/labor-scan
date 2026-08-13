@@ -263,16 +263,6 @@ video{width:100%;height:100%;object-fit:cover;display:block}
     </div>
   </div>
 
-  <div class="card" id="whoCard">
-    <p class="eyebrow">People</p>
-    <div class="chips" id="people"></div>
-    <div class="row" style="margin-top:9px">
-      <input id="newPerson" placeholder="Add name" autocomplete="off">
-      <button class="ghost" id="btnPerson" style="flex:none">Add</button>
-    </div>
-    <p class="hint" id="cfHint"></p>
-  </div>
-
   <div class="card">
     <div class="field" style="margin-bottom:0">
       <label for="locSel">Choose a location — or scan a location barcode</label>
@@ -373,7 +363,6 @@ const S = {
   substance: null,
   mode: "out",
   person: store.get("ci.person",""),
-  people: store.get("ci.people",[]),
   cfWho: null, cfWhen: null,
   recent: store.get("ci.recent", {sizes:[], supps:[], loc:""}),
   pending: null,
@@ -607,55 +596,27 @@ function detectFields(){
   const norm = s => String(s||"").toLowerCase();
   S.cfWho  = (cf.find(f => /ausgeliehen an|entliehen an|ausleihe|borrow|inhaber|nutzer/.test(norm(f.name))) || {}).id || null;
   S.cfWhen = (cf.find(f => f.type==="date" && /ausgeliehen|entliehen|ausleih|borrow/.test(norm(f.name)))  || {}).id || null;
-  const h = $("cfHint");
-  if(S.cfWho && S.cfWhen) h.textContent = "Name and date will be written to the container fields.";
-  else if(S.cfWho)        h.textContent = "Name will be written. There's no date field set up in ChemInventory for the date.";
-  else                    h.textContent = "No borrowing fields are set up in ChemInventory yet — the name will only appear here in the log and at the destination location.";
 }
 
-function addPerson(name){
-  const v = String(name||"").trim();
-  if(!v) return;
-  if(!S.people.includes(v)) S.people.push(v);
-  S.people.sort((a,b)=>a.localeCompare(b,"en"));
-  S.person = v; store.set("ci.people", S.people); store.set("ci.person", v);
-  renderPeople();
+function setPerson(name){
+  S.person = String(name||"").trim();
+  store.set("ci.person", S.person);
+  updateWhoLine();
+  if(S.pending) renderPending();
 }
 
-function renderPeople(){
-  const box = $("people"); box.innerHTML="";
-  if(!S.people.length){
-    const p=document.createElement("span"); p.className="empty-state"; p.textContent="No one added yet.";
-    box.appendChild(p);
-  }
-  S.people.forEach(name=>{
-    const b=document.createElement("button"); b.className="chip";
-    b.setAttribute("aria-pressed", String(name===S.person));
-    b.innerHTML = esc(name) + '<span class="x" title="remove">×</span>';
-    b.onclick = ev => {
-      if(ev.target.classList.contains("x")){
-        S.people = S.people.filter(n=>n!==name);
-        if(S.person===name){ S.person=""; store.set("ci.person",""); }
-        store.set("ci.people", S.people); renderPeople(); return;
-      }
-      S.person = (S.person===name) ? "" : name;
-      store.set("ci.person", S.person); renderPeople();
-    };
-    box.appendChild(b);
-  });
+function updateWhoLine(){
   $("whoLine").textContent = S.mode==="in"
     ? "Return — borrow info will be cleared"
     : (S.person ? "to " + S.person + " · " + new Date().toLocaleDateString("en-GB") : "no one selected");
-  if(S.pending) renderPending();
 }
 
 function setMode(m){
   S.mode = m;
   $("modeOut").setAttribute("aria-pressed", String(m==="out"));
   $("modeIn").setAttribute("aria-pressed", String(m==="in"));
-  $("whoCard").style.display = m==="in" ? "none" : "block";
   cancelPending();
-  renderPeople();
+  updateWhoLine();
 }
 
 async function writeField(containerid, fieldId, value){
@@ -864,9 +825,9 @@ function renderPending(){
   if(p.mode === "out"){
     html += '<div style="font-size:14px">Target: '+(S.target?esc(S.target.path):'<span style="color:var(--bad)">none selected</span>')+'</div>'+
       '<div class="field" style="margin-top:10px;margin-bottom:8px">'+
-        '<label for="pendPerson">Borrower</label><select id="pendPerson"></select>'+
-        '<div class="row" style="margin-top:6px">'+
-          '<input id="pendNewPerson" placeholder="New name…" autocomplete="off">'+
+        '<label for="pendPerson">Borrower</label>'+
+        '<div class="row">'+
+          '<input id="pendPerson" placeholder="New name" autocomplete="off">'+
           '<button class="ghost" id="pendAddPerson" style="flex:none">Add</button>'+
         '</div>'+
       '</div>'+
@@ -884,14 +845,11 @@ function renderPending(){
   body.innerHTML = html;
 
   if(p.mode === "out"){
-    const selP = $("pendPerson");
-    selP.innerHTML = '<option value="">— none —</option>' + S.people.map(n=>'<option value="'+esc(n)+'"'+(n===S.person?' selected':'')+'>'+esc(n)+'</option>').join('');
-    selP.onchange = ()=>{ S.person = selP.value; store.set("ci.person", S.person); renderPeople(); };
-
-    const newPersonEl = $("pendNewPerson");
-    const addFromPending = ()=>{ addPerson(newPersonEl.value); };
-    $("pendAddPerson").onclick = addFromPending;
-    newPersonEl.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); addFromPending(); }});
+    const personEl = $("pendPerson");
+    personEl.value = S.person || "";
+    const applyPerson = ()=>{ setPerson(personEl.value); };
+    $("pendAddPerson").onclick = applyPerson;
+    personEl.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); applyPerson(); }});
 
     const dateEl = $("pendDate");
     dateEl.value = p.date || new Date().toISOString().slice(0,10);
@@ -922,7 +880,7 @@ async function confirmPending(){
     let note = p.code + " → " + S.target.path;
 
     if(p.mode === "out"){
-      if(!S.person && (S.cfWho || S.people.length)){
+      if(!S.person){
         logAdd("lendLog", false, "No borrower selected — only moved", note);
       } else {
         const dateStr = p.date || new Date().toISOString().slice(0,10);
@@ -1107,8 +1065,6 @@ $("cas").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(
 $("sname").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); findSubstance(); }});
 $("modeOut").onclick = ()=> setMode("out");
 $("modeIn").onclick  = ()=> setMode("in");
-$("btnPerson").onclick = ()=>{ const i=$("newPerson"); addPerson(i.value); i.value=""; };
-$("newPerson").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); $("btnPerson").click(); }});
 $("btnConfirmPending").onclick = confirmPending;
 $("btnCancelPending").onclick = cancelPending;
 setMode("out");
